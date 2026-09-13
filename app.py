@@ -59,7 +59,7 @@ st.markdown(f"""
 .stApp {{
     background:
         linear-gradient(rgba(3, 18, 51, .42), rgba(5, 36, 83, .52)),
-        url("data:image/png;base64,{{BG_B64}}") center center / cover fixed no-repeat;
+        url("data:image/png;base64,{BG_B64}") center center / cover fixed no-repeat;
     color: #FFFFFF;
 }}
 
@@ -369,8 +369,8 @@ SCHEMA: Dict[str, Any] = {
         }
     },
     "evaluation_assessment": {
-        "formative": [{"name": "", "instruction": ""}],
-        "summative": [{"name": "", "instruction": ""}]
+        "formative": [{"name": "", "instruction": "", "items": [""]}],
+        "summative": [{"name": "", "instruction": "", "items": [""]}]
     },
     "summary_action": {
         "summary": "",
@@ -428,21 +428,21 @@ RULES
 6. Strictly align: Learning Competency -> Specific Lesson Focus -> Daily Objectives -> Presentation -> Activities -> Formative Assessment -> Summative Assessment -> Summary -> Action.
 7. Objectives are based on the competency and MUST NOT exceed its cognitive/performance demand. If it says "discuss," do not require "demonstrate" unless supported.
 8. Transfer Goal, Essential Understanding, and Essential Question MUST come from the relevant Unit Plan when available.
-9. Review uses the previous lesson in source sequence and contains EXACTLY TWO questions: 1 LOTS and 1 HOTS, connecting previous learning to today's lesson.
+9. Review uses the immediately previous lesson in the source sequence and contains EXACTLY TWO simple questions, moving from basic recall/understanding to deeper thinking/application. Do not display LOTS/HOTS labels.
 10. Focus is today's Specific Lesson Topic / Focus.
 11. Resources use source-listed resources first; add only genuinely needed practical resources such as TV, PPT Presentation, HDMI, Textbook, Notebook, Paper, and Pen.
 12. Motivation directly connects to the lesson, catches attention, is engaging, and brief.
 13. Activating Prior Knowledge is a simple starter QUESTION needed for today's lesson.
-14. Presentation of Concept supplies measurable daily objectives introduced in Word by "The students will be able to…"; never exceed the competency.
+14. Presentation of Concept supplies measurable daily objectives introduced in Word by "The students will be able to…". Each objective must start with the action verb only; never repeat that introductory phrase inside the objective.
 15. Activities align with competency, objectives, Curriculum Map, and focus. Prefer source activities when suitable; otherwise create a simple aligned activity. Use group/individual/both only when appropriate and feasible under one hour.
 16. Broadening provides one simple lesson-related question for EACH Leading, Exploring, Connecting, and Essential Question, progressively deepening thinking.
 17. Ignacian Core Value is Faith, Excellence, or Service. Follow source if stated; otherwise choose the natural fit.
 18. Related values: FAITH—Strong Faith in God, Prophetic Witness to Gospel Values, Nationalism, Justice, Communion. EXCELLENCE—Integrity, Competence, Resourcefulness, Discipline, Self-reliance. SERVICE—Stewardship, Humility, Charity, Courage, Preferential Love of the Poor.
 19. Social Orientation connects learning to family, school, community, or society.
-20. Lesson Across Discipline meaningfully connects another subject with a simple question/connection.
+20. Lesson Across Discipline selects exactly one DIFFERENT subject from: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino, and gives a simple meaningful connection.
 21. Biblical Text/Reflection genuinely aligns with the lesson. Prefer source material and NEVER fabricate verse wording.
-22. Formative Assessment happens DURING lesson/activity and checks competency/objectives.
-23. Summative Assessment checks today's learning near the end and measures the same competency/objectives.
+22. Formative Assessment happens DURING the lesson/activity, checks the competency/objectives, and includes the actual ready-to-use questions/tasks/items—not only the assessment name.
+23. Summative Assessment checks today's learning near the end, measures the same competency/objectives, and includes the actual ready-to-use questions/tasks/items—not only the assessment name.
 24. Summary is a QUESTION leading students to summarize/explain/apply the main learning.
 25. Action is a QUESTION leading students to apply learning in a real situation.
 26. Purposive Assignment/Enrichment strengthens today's learning or prepares tomorrow's lesson.
@@ -468,6 +468,14 @@ STUDENT-FRIENDLY AND HUMANIZED WORDING
 44. Make Activating Prior Knowledge, Broadening questions, Summary, and Action sound like questions a teacher could naturally ask aloud in class.
 45. Make assessment directions specific and simple: clearly tell students what to do, without unnecessary explanation.
 46. Before returning the JSON, silently reread every student-facing sentence and simplify any wording that sounds too formal, robotic, vague, or difficult while keeping the intended learning level and curriculum alignment unchanged.
+47. PRESENTATION OF CONCEPT: the Word template already prints "The students will be able to…". Therefore, each objective in presentation_of_concept MUST begin directly with the action verb (for example: "explain...", "discuss...", "identify...", "solve..."). NEVER repeat "The students will be able to" inside an objective.
+48. REVIEW: identify the lesson immediately BEFORE today's lesson from the Curriculum Map/Unit Plan sequence. Write exactly TWO simple review questions about that previous lesson, progressing from recall/understanding to deeper thinking/application. Do NOT write or mention the labels LOTS or HOTS in the questions or output.
+49. ASSESSMENTS MUST BE READY TO USE, not merely names such as "Oral Recitation," "Written Quiz," or "Observation." For formative assessment, provide the actual questions, tasks, prompts, computations, statements, or performance checks students will answer/do during the lesson. For summative assessment, provide the actual end-of-lesson items/tasks that directly measure today's objectives and competency. Keep them realistic for a lesson under one hour.
+50. When an assessment is a quiz, include the actual quiz items. When it is a performance task, include the exact task/instructions and concise criteria needed to measure learning. Do not leave assessment content implied.
+51. LESSON ACROSS DISCIPLINE: choose ONLY ONE from this allowed list: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino. It MUST be different from the current Subject and must have a clear, natural connection to today's lesson. Never choose the same subject as the lesson.
+52. REFERENCES: prioritize references already named in the Curriculum Map or Unit Plan. Format bibliographic references in APA style as far as the available details allow. If a reliable source URL is explicitly available in the uploaded documents, include it. Never invent an author, title, year, publisher, DOI, or URL. If source details are incomplete, include only the details actually supported rather than fabricating missing information.
+53. If outside information is used to enrich the lesson, identify a real, relevant, reliable source in the references. Do not output a made-up link. If no verified URL is available in the provided source context, an APA-style source without a fabricated URL is better than an invented link.
+54. Keep the exact Word template structure, columns, section order, and formatting unchanged. These content rules must not alter the document layout.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -834,7 +842,10 @@ def build_docx(d: Dict[str, Any]) -> bytes:
     for i,obj in enumerate(lesson.get("presentation_of_concept",[]) or []):
         if str(obj).strip():
             prefix=chr(97+i) if i<26 else str(i+1)
-            add(c,f"{prefix}.  {str(obj).strip()}",left=.55)
+            obj_text=str(obj).strip()
+            obj_text=re.sub(r"^the\s+students?\s+will\s+be\s+able\s+to\s*[:\-–—]?\s*", "", obj_text, flags=re.I)
+            obj_text=re.sub(r"^students?\s+will\s+be\s+able\s+to\s*[:\-–—]?\s*", "", obj_text, flags=re.I)
+            add(c,f"{prefix}.  {obj_text}",left=.55)
 
     add(c,L["activities"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for act in lesson.get("activities",[]) or []:
@@ -880,11 +891,19 @@ def build_docx(d: Dict[str, Any]) -> bytes:
     add(c,L["formative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("formative",[]) or []:
         name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
-        if name or ins: add(c,"•  "+name+((": "+ins) if name and ins else ins),left=.55)
+        if name: add(c,"•  "+name,left=.55)
+        if ins: add(c,ins,left=.55)
+        items=item.get("items",[]) or item.get("questions",[]) or []
+        for i,q in enumerate(items,1):
+            if str(q).strip(): add(c,f"{i}.) {str(q).strip()}",left=.70)
     add(c,L["summative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("summative",[]) or []:
         name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
-        if name or ins: add(c,"•  "+name+((": "+ins) if name and ins else ins),left=.55)
+        if name: add(c,"•  "+name,left=.55)
+        if ins: add(c,ins,left=.55)
+        items=item.get("items",[]) or item.get("questions",[]) or []
+        for i,q in enumerate(items,1):
+            if str(q).strip(): add(c,f"{i}.) {str(q).strip()}",left=.70)
 
     # IV. Summary/Action
     sa=d.get("summary_action",{}) or {}
