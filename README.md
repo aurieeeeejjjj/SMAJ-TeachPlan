@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/32154963/README.md)
+[README.md](https://github.com/user-attachments/files/32155043/README.md)
 # SMAJ TeachPlan — Gemini Free-Tier Version v2
 
 This version uses the Google Gemini API and now includes required Teacher Name and Grade Level fields.
