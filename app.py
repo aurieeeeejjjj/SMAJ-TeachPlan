@@ -300,7 +300,7 @@ SCHEMA: Dict[str, Any] = {
 }
 
 
-def build_prompt(cm_text: str, up_text: str, topic: str, session: str, lesson_date: str, learning_competency: str, learning_objectives: list[str]) -> str:
+def build_prompt(cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str, session: str, lesson_date: str) -> str:
     return f"""
 You are a Daily Learning Plan generator for teachers.
 
@@ -317,46 +317,37 @@ UNIT PLAN
 
 REQUESTED LESSON
 ================
-Topic: {topic}
+Topic from Curriculum Map: {curriculum_topic}
+Specific Lesson Topic / Focus: {specific_lesson_focus}
 Session: {session or "[not supplied]"}
 Date: {lesson_date or "[not supplied]"}
-Learning Competency supplied by teacher: {learning_competency or "[not supplied]"}
-Learning Objectives supplied by teacher:
-1. {learning_objectives[0] or "[not supplied]"}
-2. {learning_objectives[1] or "[not supplied]"}
-3. {learning_objectives[2] or "[not supplied]"}
 
 RULES
 =====
-1. Generate ONE complete daily lesson plan.
-2. Match the requested topic to the correct lesson/section in the Curriculum Map.
-3. Preserve source terminology, competencies, assessment names, activities, resources,
-   values/integrations, references, grade level, subject, term, and unit.
-4. Use the Unit Plan's Transfer Goal, Essential Understanding, and Essential Question.
-5. Do not borrow topic-specific content from another lesson.
-6. Do not invent school-specific facts, staff names, references, or unrelated curriculum requirements.
-   Exception: if the Learning Competency is not supplied by the teacher and cannot be clearly found
-   in the Curriculum Map or Unit Plan, create one reasonable, topic-aligned competency.
-7. Produce EXACTLY THREE learning objectives under lesson_development.presentation_of_concept.
-   Each objective must be measurable, topic-specific, and aligned with the competency.
-   If the teacher supplies an objective, preserve it. If an objective field is blank, derive a suitable
-   objective from the Curriculum Map and Unit Plan; if the source files do not state one, create an
-   appropriate objective for the topic.
-8. If the teacher supplies a Learning Competency, use it exactly. Otherwise, first derive the competency
-   from the Curriculum Map and Unit Plan, and only create one if it is not stated there.
-9. Activities may be expanded into classroom-ready instructions and steps, but must preserve
-   the purpose of the activity named in the Curriculum Map or Unit Plan.
-10. Formative and summative assessments must match the source documents.
-11. Keep the lesson realistic for one daily session.
-12. The Action statement must begin with "I will..."
-13. Preserve the Biblical reference in the Curriculum Map. Do not invent a direct Bible quotation
-    if the actual verse wording is not provided by the uploaded files. In that case, leave "text" blank.
-14. Use the user-supplied Session and Date when present; otherwise leave them blank.
-15. Use simple, natural teacher wording. Write as a classroom teacher would write a daily lesson plan.
-    Keep sentences clear, practical, and concise. Avoid overly formal, flowery, technical, or AI-sounding wording.
-16. Keep directions and guide questions short and easy to understand. Do not add long explanations unless the
-    Curriculum Map or Unit Plan specifically requires them.
-17. Return ONLY valid JSON. Do not use markdown fences or add explanations.
+1. Generate ONE complete daily lesson plan for the Specific Lesson Topic / Focus.
+2. Use the Topic from Curriculum Map to locate the correct part of the Curriculum Map and Unit Plan.
+3. Use ONLY the Learning Competency or Learning Competencies actually supported by the Curriculum Map or Unit Plan.
+4. NEVER invent a Learning Competency. If no competency from the uploaded files reasonably matches the curriculum topic and specific lesson focus, return an empty learning_competencies list.
+5. Keep strong alignment throughout the lesson:
+   Learning Competency -> Specific Lesson Focus -> Presentation of Concept -> Activities -> Formative Assessment -> Summative Assessment -> Summary/Action.
+6. Every activity must directly practice or apply the selected Learning Competency.
+7. Every formative and summative assessment must directly check the same competency practiced in the activities.
+8. When the curriculum topic is broad, focus only on the teacher's Specific Lesson Topic / Focus so the same broad topic can produce several different daily lesson plans.
+9. Do NOT create learning objectives. Do not include objective statements.
+10. In Presentation of Concept, give only a short explanation or key teaching points for the specific lesson focus. This is not an objectives section.
+11. Preserve source terminology, assessment names, resources, values/integrations, references, grade level, subject, term, and unit when supported by the uploaded files.
+12. Use the Unit Plan's Transfer Goal, Essential Understanding, and Essential Question when available.
+13. Do not borrow topic-specific content from another lesson or competency.
+14. Do not invent school-specific facts, staff names, references, or curriculum requirements.
+15. Activities may be expanded into clear classroom-ready steps, but keep them practical and directly aligned to the competency and lesson focus.
+16. Keep the lesson realistic for one daily session.
+17. The Action statement must begin with "I will..."
+18. Preserve the Biblical reference from the source. Do not invent a Bible quotation if the wording is not provided.
+19. Use the user-supplied Session and Date when present; otherwise leave them blank.
+20. Use simple, natural teacher wording. Keep sentences short, clear, practical, and easy to understand.
+21. Avoid flowery, overly formal, technical, or AI-sounding wording. Use words a classroom teacher would normally use.
+22. Keep instructions and guide questions simple and direct.
+23. Return ONLY valid JSON. Do not use markdown fences or add explanations.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -383,11 +374,10 @@ def extract_json(text: str) -> Dict[str, Any]:
 def generate_plan(
     cm_text: str,
     up_text: str,
-    topic: str,
+    curriculum_topic: str,
+    specific_lesson_focus: str,
     session: str,
     lesson_date: str,
-    learning_competency: str,
-    learning_objectives: list[str],
 ) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         raise RuntimeError(
@@ -400,11 +390,10 @@ def generate_plan(
         contents=build_prompt(
             cm_text,
             up_text,
-            topic,
+            curriculum_topic,
+            specific_lesson_focus,
             session,
             lesson_date,
-            learning_competency,
-            learning_objectives,
         ),
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -754,20 +743,13 @@ def build_docx(d: Dict[str, Any]) -> bytes:
         left=.30,
         align=WD_ALIGN_PARAGRAPH.LEFT,
     )
-    _school_add_p(
-        cell,
-        "The students will be able to…",
-        left=.55,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
 
-    # The generator is designed to produce exactly three learning objectives.
-    objectives = lesson.get("presentation_of_concept", []) or []
-    for i, objective in enumerate(objectives[:3]):
-        if str(objective).strip():
+    concept_points = lesson.get("presentation_of_concept", []) or []
+    for point in concept_points:
+        if str(point).strip():
             _school_add_p(
                 cell,
-                f"{chr(97 + i)}.  {str(objective).strip()}",
+                str(point).strip(),
                 left=.55,
             )
 
@@ -1136,31 +1118,19 @@ with c_grade:
         placeholder="Example: Grade 8"
     )
 
-learning_competency = st.text_area(
-    "Learning Competency (Optional)",
-    placeholder="Leave blank to let AI derive it from the Curriculum Map and Unit Plan.",
-    height=90
+curriculum_topic = st.text_input(
+    "Topic from Curriculum Map *",
+    placeholder="Example: Measures of Central Tendency"
 )
 
-st.markdown("**Learning Objectives (Optional)**")
-st.caption("You may enter up to three objectives. Any blank objective will be completed by AI based on the Curriculum Map and Unit Plan.")
-
-obj1 = st.text_input(
-    "Learning Objective 1 (Optional)",
-    placeholder="Leave blank for AI-generated objective."
-)
-obj2 = st.text_input(
-    "Learning Objective 2 (Optional)",
-    placeholder="Leave blank for AI-generated objective."
-)
-obj3 = st.text_input(
-    "Learning Objective 3 (Optional)",
-    placeholder="Leave blank for AI-generated objective."
+specific_lesson_focus = st.text_input(
+    "Specific Lesson Topic / Focus *",
+    placeholder="Example: Finding the Mean"
 )
 
-topic = st.text_input(
-    " Topic *",
-    placeholder="Example: Factoring"
+st.caption(
+    "Use a specific lesson focus when the curriculum topic is broad. "
+    "This lets you create more than one daily lesson plan from the same broad topic."
 )
 
 c3, c4 = st.columns(2)
@@ -1202,10 +1172,22 @@ else:
     st.markdown('<div class="status-no">Grade Level required</div>', unsafe_allow_html=True)
     ready = False
 
-if topic.strip():
-    st.markdown(f'<div class="status-ok">Topic: {topic.strip()}</div>', unsafe_allow_html=True)
+if curriculum_topic.strip():
+    st.markdown(
+        f'<div class="status-ok">Curriculum Topic: {curriculum_topic.strip()}</div>',
+        unsafe_allow_html=True
+    )
 else:
-    st.markdown('<div class="status-no">Topic required</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-no">Topic from Curriculum Map required</div>', unsafe_allow_html=True)
+    ready = False
+
+if specific_lesson_focus.strip():
+    st.markdown(
+        f'<div class="status-ok">Lesson Focus: {specific_lesson_focus.strip()}</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown('<div class="status-no">Specific Lesson Topic / Focus required</div>', unsafe_allow_html=True)
     ready = False
 
 if not GEMINI_API_KEY:
@@ -1226,50 +1208,35 @@ if st.button(
             up_text = read_docx(up_file)
 
         with st.spinner("Creating your Daily Learning Plan..."):
-            user_objectives = [obj1.strip(), obj2.strip(), obj3.strip()]
-
             data = generate_plan(
                 cm_text=cm_text,
                 up_text=up_text,
-                topic=topic.strip(),
+                curriculum_topic=curriculum_topic.strip(),
+                specific_lesson_focus=specific_lesson_focus.strip(),
                 session=session.strip(),
                 lesson_date=lesson_date.strip(),
-                learning_competency=learning_competency.strip(),
-                learning_objectives=user_objectives,
             )
 
-            # Required form values are inserted directly into the Word document data.
             data["grade_level"] = grade_level_input.strip()
             data["prepared_by"] = teacher_name.strip()
+            data["topic"] = specific_lesson_focus.strip()
 
-            # Learning Competency is optional:
-            # use the teacher's entry when supplied; otherwise keep the AI-derived/generated value.
-            if learning_competency.strip():
-                data["learning_competencies"] = [learning_competency.strip()]
+            competencies = data.get("learning_competencies", []) or []
+            competencies = [str(c).strip() for c in competencies if str(c).strip()]
+            data["learning_competencies"] = competencies
 
-            # Learning Objectives are optional:
-            # preserve teacher-entered objectives and let AI fill blank positions.
-            lesson_dev = data.setdefault("lesson_development", {})
-            ai_objectives = lesson_dev.get("presentation_of_concept", [])
-            if not isinstance(ai_objectives, list):
-                ai_objectives = [str(ai_objectives)] if ai_objectives else []
-
-            merged_objectives = []
-            for i in range(3):
-                if user_objectives[i]:
-                    merged_objectives.append(user_objectives[i])
-                elif i < len(ai_objectives) and str(ai_objectives[i]).strip():
-                    merged_objectives.append(str(ai_objectives[i]).strip())
-                else:
-                    merged_objectives.append("")
-
-            lesson_dev["presentation_of_concept"] = merged_objectives
+            if not competencies:
+                st.warning(
+                    "No matching Learning Competency was found in the uploaded Curriculum Map or Unit Plan "
+                    "for this topic and lesson focus. Please check the topic/focus and try again."
+                )
+                st.stop()
 
         with st.spinner("Preparing the Word document..."):
             docx_bytes = build_docx(data)
 
         st.session_state["generated_docx"] = docx_bytes
-        st.session_state["generated_topic"] = topic.strip()
+        st.session_state["generated_topic"] = specific_lesson_focus.strip()
         st.success(" Lesson plan ready!")
 
     except Exception as exc:
