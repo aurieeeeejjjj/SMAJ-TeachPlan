@@ -471,8 +471,8 @@ RULES
 16. Broadening provides one simple lesson-related question for EACH Leading, Exploring, Connecting, and Essential Question, progressively deepening thinking.
 17. Ignacian Core Value is Faith, Excellence, or Service. Follow source if stated; otherwise choose the natural fit.
 18. Related values: FAITH—Strong Faith in God, Prophetic Witness to Gospel Values, Nationalism, Justice, Communion. EXCELLENCE—Integrity, Competence, Resourcefulness, Discipline, Self-reliance. SERVICE—Stewardship, Humility, Charity, Courage, Preferential Love of the Poor.
-19. Social Orientation connects learning to family, school, community, or society.
-20. Lesson Across Discipline selects exactly one DIFFERENT subject from: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino, and gives a simple meaningful connection.
+19. SOCIAL ORIENTATION: connect today's lesson to family, school, community, or society. The "name" should identify the context (for example: Community, Family, School, Society). The "question_or_connection" MUST be ONE clear STUDENT-FACING QUESTION that helps learners relate or apply the lesson to that real-life social context. It must end with a question mark.
+20. LESSON ACROSS DISCIPLINE: select exactly one DIFFERENT subject from: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino. The "name" is the chosen subject. The "question_or_connection" MUST be ONE clear STUDENT-FACING QUESTION showing how today's lesson connects to that other subject. It must end with a question mark.
 21. Biblical Text/Reflection genuinely aligns with the lesson. Prefer source material and NEVER fabricate verse wording.
 22. Formative Assessment happens DURING the lesson/activity, checks the competency/objectives, and includes the actual ready-to-use questions/tasks/items—not only the assessment name.
 23. Summative Assessment checks today's learning near the end and measures the SAME competency, objectives, and specific lesson focus.
@@ -513,10 +513,12 @@ STUDENT-FRIENDLY AND HUMANIZED WORDING
 48. REVIEW: identify the lesson immediately BEFORE today's lesson from the Curriculum Map/Unit Plan sequence. Write exactly TWO simple review questions about that previous lesson, progressing from recall/understanding to deeper thinking/application. Do NOT write or mention the labels LOTS or HOTS in the questions or output.
 49. ASSESSMENTS MUST BE READY TO USE, not merely names such as "Oral Recitation," "Written Quiz," or "Observation." For formative assessment, provide the actual questions, tasks, prompts, computations, statements, or performance checks students will answer/do during the lesson. For summative assessment, provide the actual end-of-lesson items/tasks that directly measure today's objectives and competency. Keep them realistic for a lesson under one hour.
 50. When an assessment is a quiz, include the actual quiz items. When it is a performance task, include the exact task/instructions and concise criteria needed to measure learning. Do not leave assessment content implied.
-51. LESSON ACROSS DISCIPLINE: choose ONLY ONE from this allowed list: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino. It MUST be different from the current Subject and must have a clear, natural connection to today's lesson. Never choose the same subject as the lesson.
+51. LESSON ACROSS DISCIPLINE: choose ONLY ONE from this allowed list: TLE, Computer, Science, Araling Panlipunan, Christian Living, Mathematics, English, Filipino. It MUST be different from the current Subject. After naming that subject, write ONE simple student-facing QUESTION that lets students integrate today's lesson with the other subject. Example format: Lesson Across Discipline: Science — "How do scientists collect and organize experimental data?" Never choose the same subject as the lesson.
+51A. SOCIAL ORIENTATION: after naming the social context, write ONE simple student-facing QUESTION that asks students to connect today's lesson to family, school, community, or society. Do not write only a statement or explanation.
 52. REFERENCES: prioritize references already named in the Curriculum Map or Unit Plan. Format bibliographic references in APA style as far as the available details allow. If a reliable source URL is explicitly available in the uploaded documents, include it. Never invent an author, title, year, publisher, DOI, or URL. If source details are incomplete, include only the details actually supported rather than fabricating missing information.
 53. If outside information is used to enrich the lesson, identify a real, relevant, reliable source in the references. Do not output a made-up link. If no verified URL is available in the provided source context, an APA-style source without a fabricated URL is better than an invented link.
-54. Keep the exact Word template structure, columns, section order, and formatting unchanged. These content rules must not alter the document layout.
+54. SIGNATURES: "prepared_by" will be replaced by the Teacher's Name entered in the generator, so do not invent a teacher name. For "checked_by", "checked_by_title", "noted_by", and "noted_by_title", copy the exact name and title found in the Curriculum Map/Unit Plan when explicitly present. Never invent or paraphrase these names/titles. If they are not found, leave those JSON fields blank so the Word template defaults can be used.
+55. Keep the exact Word template structure, columns, section order, and formatting unchanged. These content rules must not alter the document layout.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -992,7 +994,11 @@ def build_docx(d: Dict[str, Any]) -> bytes:
         item=integ.get(key,{}) or {}
         if item.get("name"):
             add_lv(c,f"•  {label}: ",item.get("name",""),left=.55)
-            if item.get(detail): add(c,item.get(detail,""),left=.55)
+            if item.get(detail):
+                q_or_connection = str(item.get(detail,"") or "").strip()
+                # Social Orientation and Lesson Across Discipline should appear as clear
+                # student-facing questions on their own line.
+                add(c,q_or_connection,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
     bib=integ.get("biblical_text_reflection",{}) or {}
     if bib.get("reference"): add_lv(c,f"•  {L['biblical']}: ",bib.get("reference",""),left=.55)
     if bib.get("text"): add(c,bib.get("text",""),left=.55)
@@ -1005,21 +1011,21 @@ def build_docx(d: Dict[str, Any]) -> bytes:
     add(c,L["formative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("formative",[]) or []:
         name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
-        if name: add(c,"•  "+name,left=.55)
-        if ins: add(c,ins,left=.55)
+        if name: add(c,"•  "+name,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+        if ins: add(c,ins,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
         items=item.get("items",[]) or item.get("questions",[]) or []
         for i,q in enumerate(items,1):
             qtext = re.sub(r"^\s*\d+\s*[.)]\s*", "", str(q or "").strip())
-            if qtext: add(c,f"{i}.) {qtext}",left=.70)
+            if qtext: add(c,f"{i}.) {qtext}",left=.70,align=WD_ALIGN_PARAGRAPH.LEFT)
     add(c,L["summative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("summative",[]) or []:
         name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
-        if name: add(c,"•  "+name,left=.55)
-        if ins: add(c,ins,left=.55)
+        if name: add(c,"•  "+name,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+        if ins: add(c,ins,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
         items=item.get("items",[]) or item.get("questions",[]) or []
         for i,q in enumerate(items,1):
             qtext = re.sub(r"^\s*\d+\s*[.)]\s*", "", str(q or "").strip())
-            if qtext: add(c,f"{i}.) {qtext}",left=.70)
+            if qtext: add(c,f"{i}.) {qtext}",left=.70,align=WD_ALIGN_PARAGRAPH.LEFT)
 
     # IV. Summary/Action
     sa=d.get("summary_action",{}) or {}
@@ -1046,19 +1052,28 @@ def build_docx(d: Dict[str, Any]) -> bytes:
         if str(ref).strip(): add(c,str(ref).strip(),left=.30)
 
     # Signatures: exact sample columns.
+    # Prepared by always uses the Teacher's Name entered in the generator.
+    # Checked/Noted use exact source-document values when found; otherwise
+    # preserve the exact names/titles from the approved school template.
     prepared_title=str(d.get("prepared_by_title","") or "").strip()
     if not prepared_title:
         prepared_title=f"{subject_text} {L['teacher']}".strip() if subject_text else L["teacher"]
+
+    checked_name=str(d.get("checked_by","") or "").strip() or "ARIEL C. BARROS, LPT, MAEd – EM"
+    checked_title=str(d.get("checked_by_title","") or "").strip() or "Academic Coordinator"
+    noted_name=str(d.get("noted_by","") or "").strip() or "S. MA. LILIBETH E. MONTECLARO, RVM"
+    noted_title=str(d.get("noted_by_title","") or "").strip() or "School Principal"
+
     for cell,label,name,title in [
         (table.rows[9].cells[0],L["prepared"],d.get("prepared_by",""),prepared_title),
-        (table.rows[9].cells[2],L["checked"],d.get("checked_by",""),d.get("checked_by_title","")),
+        (table.rows[9].cells[2],L["checked"],checked_name,checked_title),
     ]:
         clear(cell); add(cell,label,bold=True,align=WD_ALIGN_PARAGRAPH.LEFT); add(cell,"",align=WD_ALIGN_PARAGRAPH.LEFT)
         add(cell,name,bold=True,align=WD_ALIGN_PARAGRAPH.CENTER); add(cell,title,align=WD_ALIGN_PARAGRAPH.CENTER)
 
     c=table.rows[10].cells[1]; clear(c)
     add(c,L["noted"],bold=True,align=WD_ALIGN_PARAGRAPH.LEFT); add(c,"",align=WD_ALIGN_PARAGRAPH.LEFT)
-    add(c,d.get("noted_by",""),bold=True,align=WD_ALIGN_PARAGRAPH.CENTER); add(c,d.get("noted_by_title",""),align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(c,noted_name,bold=True,align=WD_ALIGN_PARAGRAPH.CENTER); add(c,noted_title,align=WD_ALIGN_PARAGRAPH.CENTER)
 
     status=table.rows[11].cells[0]; mods=table.rows[11].cells[2]
     clear(status); add(status,L["status"],bold=True,align=WD_ALIGN_PARAGRAPH.CENTER)
