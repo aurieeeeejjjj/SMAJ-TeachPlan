@@ -4,14 +4,18 @@ import json
 import os
 import re
 from typing import Any, Dict, List
+from pathlib import Path
 
 import streamlit as st
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, Mm
 from docx.oxml.ns import qn
 from google import genai
 from google.genai import types
+
+
+TEMPLATE_PATH = Path(__file__).with_name("school_learning_plan_template.docx")
 
 
 # ============================================================
@@ -348,7 +352,11 @@ RULES
 13. Preserve the Biblical reference in the Curriculum Map. Do not invent a direct Bible quotation
     if the actual verse wording is not provided by the uploaded files. In that case, leave "text" blank.
 14. Use the user-supplied Session and Date when present; otherwise leave them blank.
-15. Return ONLY valid JSON. Do not use markdown fences or add explanations.
+15. Use simple, natural teacher wording. Write as a classroom teacher would write a daily lesson plan.
+    Keep sentences clear, practical, and concise. Avoid overly formal, flowery, technical, or AI-sounding wording.
+16. Keep directions and guide questions short and easy to understand. Do not add long explanations unless the
+    Curriculum Map or Unit Plan specifically requires them.
+17. Return ONLY valid JSON. Do not use markdown fences or add explanations.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -478,237 +486,616 @@ def numbered(doc, items, indent=.55):
         add_text(p, f"{i}.) {item}")
 
 
+def _school_set_run_font(run, *, bold=None, italic=None):
+    """Apply the school's required Word font."""
+    run.font.name = "Arial"
+    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial")
+    run.font.size = Pt(12)
+    if bold is not None:
+        run.bold = bold
+    if italic is not None:
+        run.italic = italic
+
+
+def _school_clear_cell(cell):
+    """Clear only the contents while preserving the school's table borders/size."""
+    cell._tc.clear_content()
+
+
+def _school_add_p(
+    cell,
+    text="",
+    *,
+    bold=False,
+    italic=False,
+    align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+    left=0,
+):
+    p = cell.add_paragraph()
+    p.alignment = align
+    pf = p.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing = 1.0
+    if left:
+        pf.left_indent = Inches(left)
+
+    r = p.add_run(str(text or ""))
+    _school_set_run_font(r, bold=bold, italic=italic)
+    return p
+
+
+def _school_add_label_value(cell, label, value, *, left=.35, italic_value=False):
+    p = cell.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    pf = p.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing = 1.0
+    if left:
+        pf.left_indent = Inches(left)
+
+    r = p.add_run(label)
+    _school_set_run_font(r, bold=True)
+    r = p.add_run(str(value or ""))
+    _school_set_run_font(r, italic=italic_value)
+    return p
+
+
 def build_docx(d: Dict[str, Any]) -> bytes:
-    doc = Document()
+    """
+    Build the learning plan using the school's actual Word layout.
+    A4, Arial 12, same bordered sections, signature boxes, logo, and implementation area.
+    """
+    if not TEMPLATE_PATH.exists():
+        raise RuntimeError(
+            "The school Word template file is missing. "
+            "Please upload school_learning_plan_template.docx to the GitHub repository."
+        )
+
+    doc = Document(str(TEMPLATE_PATH))
+
+    # Required school page setup.
     sec = doc.sections[0]
-    sec.top_margin = Inches(.45)
-    sec.bottom_margin = Inches(.45)
-    sec.left_margin = Inches(.55)
-    sec.right_margin = Inches(.55)
+    sec.page_width = Mm(210)
+    sec.page_height = Mm(297)
+    sec.top_margin = Inches(.5)
+    sec.bottom_margin = Inches(.5)
+    sec.left_margin = Inches(.5)
+    sec.right_margin = Inches(.5)
 
     normal = doc.styles["Normal"]
     normal.font.name = "Arial"
     normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial")
-    normal.font.size = Pt(10.5)
+    normal.font.size = Pt(12)
 
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_after = Pt(0)
-    add_text(p, d.get("school_name", ""), bold=True, size=13)
+    # Keep the school's heading/logo area from the template.
+    # Make sure all existing heading text remains Arial 12.
+    for p in doc.paragraphs:
+        for run in p.runs:
+            _school_set_run_font(run, bold=run.bold, italic=run.italic)
 
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_after = Pt(0)
-    school_year = d.get("school_year", "")
-    add_text(p, f"School Year {school_year}".strip(), size=11)
+    # --------------------------------------------------------
+    # TOP INFORMATION TABLE
+    # --------------------------------------------------------
+    meta = doc.tables[0]
 
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_after = Pt(5)
-    add_text(p, "LEARNING PLAN", bold=True, size=13)
-
-    meta = doc.add_table(rows=4, cols=4)
-    rows = [
-        ("Subject:", d.get("subject",""), "Grade Level:", d.get("grade_level","")),
-        ("Term:", d.get("term",""), "Unit:", d.get("unit","")),
-        ("Topic:", d.get("topic",""), "Session:", d.get("session","")),
-        ("Date:", d.get("date",""), "", "")
+    row0 = [
+        ("Subject:", d.get("subject", "")),
+        ("Term:", d.get("term", "")),
+        ("Session:", d.get("session", "")),
     ]
-    for r, vals in enumerate(rows):
-        for c, val in enumerate(vals):
-            p = meta.rows[r].cells[c].paragraphs[0]
-            add_text(p, val, bold=(c % 2 == 0 and bool(val)))
+    for i, (label, value) in enumerate(row0):
+        label_cell = meta.rows[0].cells[i * 2]
+        value_cell = meta.rows[0].cells[i * 2 + 1]
+        _school_clear_cell(label_cell)
+        _school_clear_cell(value_cell)
+        _school_add_p(label_cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+        _school_add_p(value_cell, value, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
 
-    section_heading(doc, "Learning Competencies:")
-    bullets(doc, d.get("learning_competencies", []))
-
-    section_heading(doc, "Transfer Goal")
-    line(doc, value=d.get("transfer_goal",""), indent=0)
-
-    section_heading(doc, "Essential Understanding")
-    line(doc, value=d.get("essential_understanding",""), indent=0)
-
-    section_heading(doc, "Essential Question")
-    line(doc, value=d.get("essential_question",""), indent=0)
-
-    # I
-    pr = d.get("preliminaries", {})
-    section_heading(doc, "I. Preliminaries")
-
-    subheading(doc, "A. Review")
-    line(doc, value=pr.get("review",""))
-
-    subheading(doc, "B. Focus")
-    line(doc, value=pr.get("focus",""))
-
-    subheading(doc, "C. Resources")
-    bullets(doc, pr.get("resources", []))
-
-    subheading(doc, "D. Motivation")
-    mot = pr.get("motivation", {})
-    if mot.get("title"):
-        line(doc, value=mot.get("title",""))
-    if mot.get("instruction"):
-        line(doc, "Instruction: ", mot.get("instruction",""))
-    if mot.get("content"):
-        line(doc, value=mot.get("content",""))
-    if mot.get("guide_questions"):
-        line(doc, "Guide Question/s:")
-        numbered(doc, mot.get("guide_questions", []))
-
-    subheading(doc, "E. Activating Prior Knowledge")
-    line(doc, value=pr.get("activating_prior_knowledge",""))
-
-    # II
-    ld = d.get("lesson_development", {})
-    section_heading(doc, "II. Lesson Development")
-
-    subheading(doc, "A. Presentation of Concept")
-    line(doc, value="The students will be able to…")
-    for i, obj in enumerate(ld.get("presentation_of_concept", []), 1):
-        if obj:
-            letter = chr(96 + i) if i <= 26 else str(i)
-            line(doc, value=f"{letter}. {obj}", indent=.55)
-
-    subheading(doc, "B. Activities")
-    for act in ld.get("activities", []):
-        title = act.get("title","")
-        typ = act.get("type","")
-        p = doc.add_paragraph()
-        p.paragraph_format.left_indent = Inches(.35)
-        if typ:
-            add_text(p, f"{typ} Activity: ", bold=True)
-        else:
-            add_text(p, "Activity: ", bold=True)
-        add_text(p, title, bold=True)
-
-        if act.get("instruction"):
-            line(doc, "Instruction: ", act.get("instruction",""), indent=.45)
-        if act.get("steps"):
-            line(doc, "Procedure:", indent=.45)
-            numbered(doc, act.get("steps", []), indent=.65)
-        if act.get("guide_questions"):
-            line(doc, "Guide Question/s:", indent=.45)
-            numbered(doc, act.get("guide_questions", []), indent=.65)
-
-    subheading(doc, "C. Broadening of Concept")
-    broad = ld.get("broadening_of_concept", {})
-    line(doc, "• Leading Question: ", broad.get("leading_question",""))
-    line(doc, "• Exploring Question: ", broad.get("exploring_question",""))
-    line(doc, "• Connecting Question: ", broad.get("connecting_question",""))
-    line(doc, "• Essential Question: ", broad.get("essential_question",""))
-
-    subheading(doc, "D. Integration")
-    integ = ld.get("integration", {})
-
-    iv = integ.get("ignacian_core_value", {})
-    line(doc, "• Ignacian Core Value: ", iv.get("name",""))
-    if iv.get("connection"):
-        line(doc, value=iv.get("connection",""), indent=.55)
-
-    rv = integ.get("related_core_value", {})
-    line(doc, "• Related Core Value: ", rv.get("name",""))
-    if rv.get("connection"):
-        line(doc, value=rv.get("connection",""), indent=.55)
-
-    so = integ.get("social_orientation", {})
-    line(doc, "• Social Orientation: ", so.get("name",""))
-    if so.get("question_or_connection"):
-        line(doc, value=so.get("question_or_connection",""), indent=.55)
-
-    lad = integ.get("lesson_across_discipline", {})
-    line(doc, "• Lesson Across Discipline: ", lad.get("name",""))
-    if lad.get("question_or_connection"):
-        line(doc, value=lad.get("question_or_connection",""), indent=.55)
-
-    bible = integ.get("biblical_text_reflection", {})
-    line(doc, "• Biblical Text/Reflection: ", bible.get("reference",""))
-    if bible.get("text"):
-        line(doc, value=bible.get("text",""), indent=.55)
-    if bible.get("reflection"):
-        line(doc, value=bible.get("reflection",""), indent=.55)
-
-    # III
-    eva = d.get("evaluation_assessment", {})
-    section_heading(doc, "III. Evaluation/Assessment")
-
-    subheading(doc, "A. Formative Assessment")
-    for item in eva.get("formative", []):
-        if item.get("name"):
-            p = doc.add_paragraph()
-            p.paragraph_format.left_indent = Inches(.35)
-            add_text(p, "• " + item.get("name",""), bold=True)
-            if item.get("instruction"):
-                add_text(p, ": " + item.get("instruction",""))
-
-    subheading(doc, "B. Summative Assessment")
-    for item in eva.get("summative", []):
-        if item.get("name"):
-            p = doc.add_paragraph()
-            p.paragraph_format.left_indent = Inches(.35)
-            add_text(p, "• " + item.get("name",""), bold=True)
-            if item.get("instruction"):
-                add_text(p, ": " + item.get("instruction",""))
-
-    # IV
-    sa = d.get("summary_action", {})
-    section_heading(doc, "IV. Summary/Action")
-    subheading(doc, "A. Summary")
-    line(doc, value=sa.get("summary",""))
-    subheading(doc, "B. Action")
-    line(doc, value=sa.get("action",""))
-
-    # V
-    ae = d.get("assignment_enrichment", {})
-    section_heading(doc, "V. Purposive Assignment/Enrichment")
-    if ae.get("assignment"):
-        line(doc, "Assignment: ", ae.get("assignment",""))
-    if ae.get("instructions"):
-        line(doc, "Instruction: ", ae.get("instructions",""))
-    if ae.get("guide_questions"):
-        line(doc, "Guide Question/s:")
-        numbered(doc, ae.get("guide_questions", []))
-
-    # VI
-    section_heading(doc, "VI. References")
-    for ref in d.get("references", []):
-        if ref:
-            line(doc, value=ref, indent=0)
-
-    # Signatures
-    doc.add_paragraph()
-    sig = doc.add_table(rows=1, cols=3)
-    sig_items = [
-        ("Prepared by:", d.get("prepared_by",""), d.get("prepared_by_title","")),
-        ("Checked by:", d.get("checked_by",""), d.get("checked_by_title","")),
-        ("Noted by:", d.get("noted_by",""), d.get("noted_by_title","")),
+    row1 = [
+        ("Topic:", d.get("topic", "")),
+        ("Unit:", d.get("unit", "")),
     ]
-    for i, (label, name, title) in enumerate(sig_items):
-        cell = sig.rows[0].cells[i]
-        p = cell.paragraphs[0]
-        add_text(p, label, bold=True)
-        p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        add_text(p, name, bold=True)
-        p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        add_text(p, title)
+    for i, (label, value) in enumerate(row1):
+        label_cell = meta.rows[1].cells[i * 2]
+        value_cell = meta.rows[1].cells[i * 2 + 1]
+        _school_clear_cell(label_cell)
+        _school_clear_cell(value_cell)
+        _school_add_p(label_cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+        _school_add_p(value_cell, value, align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    section_heading(doc, "Status of Implementation")
-    line(doc, value="___ Implemented     ___ Partially Implemented     ___ Not Implemented", indent=0)
-    line(doc, "Remarks:")
-    line(doc, value="____________________________________________")
-    line(doc, value="____________________________________________")
-    line(doc, value="Observed by: ________________________________")
-    line(doc, value="Date Observed: ______________________________")
+    date_cell = meta.rows[1].cells[4]
+    _school_clear_cell(date_cell)
+    _school_add_p(date_cell, "Date:", bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+    date_value = str(d.get("date", "") or "").strip()
+    if date_value:
+        for line_value in date_value.splitlines():
+            if line_value.strip():
+                _school_add_p(
+                    date_cell,
+                    line_value.strip(),
+                    left=.25,
+                    align=WD_ALIGN_PARAGRAPH.LEFT,
+                )
 
-    section_heading(doc, "Modifications")
-    line(doc, value="____________________________________________")
-    line(doc, value="____________________________________________")
-    line(doc, value="____________________________________________")
-    line(doc, "Remarks:")
-    line(doc, value="____________________________________________")
-    line(doc, value="____________________________________________")
+    competency_cell = meta.rows[2].cells[0]
+    _school_clear_cell(competency_cell)
+    _school_add_p(
+        competency_cell,
+        "Learning Competencies:",
+        bold=True,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    competencies = d.get("learning_competencies", []) or []
+    for i, competency in enumerate(competencies):
+        if str(competency).strip():
+            _school_add_p(
+                competency_cell,
+                f"{chr(97 + i)}.  {str(competency).strip()}",
+                left=.25,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
+            )
+
+    # --------------------------------------------------------
+    # MAIN SCHOOL FORMAT TABLE
+    # --------------------------------------------------------
+    table = doc.tables[1]
+
+    # Transfer Goal / Essential Understanding / Essential Question
+    fixed_sections = [
+        ("Transfer Goal", "transfer_goal"),
+        ("Essential Understanding", "essential_understanding"),
+        ("Essential Question", "essential_question"),
+    ]
+    for row_index, (heading, key) in enumerate(fixed_sections):
+        cell = table.rows[row_index].cells[0]
+        _school_clear_cell(cell)
+        _school_add_p(
+            cell,
+            heading,
+            bold=True,
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+        )
+        _school_add_p(
+            cell,
+            d.get(key, ""),
+            align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        )
+
+    # I. Preliminaries
+    cell = table.rows[3].cells[0]
+    _school_clear_cell(cell)
+    prelim = d.get("preliminaries", {}) or {}
+
+    _school_add_p(cell, "I.  Preliminaries", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
+
+    _school_add_p(cell, "A.  Review", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell, prelim.get("review", ""), left=.55)
+
+    _school_add_p(cell, "B.  Focus", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell, prelim.get("focus", ""), left=.55, align=WD_ALIGN_PARAGRAPH.LEFT)
+
+    _school_add_p(cell, "C.  Resources", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    for resource in prelim.get("resources", []) or []:
+        if str(resource).strip():
+            _school_add_p(
+                cell,
+                f"•  {str(resource).strip()}",
+                left=.55,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
+            )
+
+    _school_add_p(cell, "D.  Motivation", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    motivation = prelim.get("motivation", {}) or {}
+    if motivation.get("title"):
+        _school_add_p(
+            cell,
+            motivation.get("title", ""),
+            bold=True,
+            italic=True,
+            left=.55,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+    if motivation.get("instruction"):
+        _school_add_label_value(
+            cell,
+            "Instruction: ",
+            motivation.get("instruction", ""),
+            left=.55,
+        )
+    if motivation.get("content"):
+        _school_add_p(
+            cell,
+            motivation.get("content", ""),
+            left=.55,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+
+    motivation_questions = motivation.get("guide_questions", []) or []
+    if motivation_questions:
+        guide_label = "Guide Question:" if len(motivation_questions) == 1 else "Guide Questions:"
+        _school_add_p(
+            cell,
+            guide_label,
+            bold=True,
+            italic=True,
+            left=.55,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+        for i, question in enumerate(motivation_questions, 1):
+            prefix = "" if len(motivation_questions) == 1 else f"{i}.) "
+            _school_add_p(cell, prefix + str(question), left=.55)
+
+    _school_add_p(
+        cell,
+        "E.  Activating Prior Knowledge",
+        bold=True,
+        left=.30,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(
+        cell,
+        prelim.get("activating_prior_knowledge", ""),
+        left=.55,
+    )
+
+    # II. Lesson Development
+    cell = table.rows[4].cells[0]
+    _school_clear_cell(cell)
+    lesson = d.get("lesson_development", {}) or {}
+
+    _school_add_p(cell, "II.  Lesson Development", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
+
+    _school_add_p(
+        cell,
+        "A.  Presentation of Concept",
+        bold=True,
+        left=.30,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(
+        cell,
+        "The students will be able to…",
+        left=.55,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+
+    # The generator is designed to produce exactly three learning objectives.
+    objectives = lesson.get("presentation_of_concept", []) or []
+    for i, objective in enumerate(objectives[:3]):
+        if str(objective).strip():
+            _school_add_p(
+                cell,
+                f"{chr(97 + i)}.  {str(objective).strip()}",
+                left=.55,
+            )
+
+    _school_add_p(cell, "B.  Activities", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    for activity in lesson.get("activities", []) or []:
+        activity_type = str(activity.get("type", "") or "").strip()
+        activity_title = str(activity.get("title", "") or "").strip()
+        activity_prefix = f"{activity_type} Activity: " if activity_type else "Activity: "
+
+        _school_add_p(
+            cell,
+            activity_prefix + activity_title,
+            bold=True,
+            left=.55,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+
+        if activity.get("instruction"):
+            _school_add_label_value(
+                cell,
+                "Instruction: ",
+                activity.get("instruction", ""),
+                left=.55,
+            )
+
+        steps = activity.get("steps", []) or []
+        if steps:
+            _school_add_p(
+                cell,
+                "Procedure:",
+                bold=True,
+                left=.55,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
+            )
+            for i, step in enumerate(steps, 1):
+                _school_add_p(cell, f"{i}.) {step}", left=.55)
+
+        activity_questions = activity.get("guide_questions", []) or []
+        if activity_questions:
+            label = "Guide Question:" if len(activity_questions) == 1 else "Guide Questions:"
+            _school_add_p(
+                cell,
+                label,
+                bold=True,
+                italic=True,
+                left=.55,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
+            )
+            for i, question in enumerate(activity_questions, 1):
+                _school_add_p(cell, f"{i}.) {question}", left=.55)
+
+    _school_add_p(
+        cell,
+        "C.  Broadening of Concept",
+        bold=True,
+        left=.30,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    broadening = lesson.get("broadening_of_concept", {}) or {}
+    broadening_items = [
+        ("Leading Question", "leading_question"),
+        ("Exploring Question", "exploring_question"),
+        ("Connecting Question", "connecting_question"),
+        ("Essential Question", "essential_question"),
+    ]
+    for label, key in broadening_items:
+        if broadening.get(key):
+            _school_add_p(
+                cell,
+                f"•  {label}",
+                bold=True,
+                left=.55,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
+            )
+            _school_add_p(cell, broadening.get(key, ""), left=.55)
+
+    _school_add_p(cell, "D.  Integration", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    integration = lesson.get("integration", {}) or {}
+
+    integrations = [
+        ("Ignacian Core Value", "ignacian_core_value", "connection"),
+        ("Related Core Value", "related_core_value", "connection"),
+        ("Social Orientation", "social_orientation", "question_or_connection"),
+        ("Lesson Across Discipline", "lesson_across_discipline", "question_or_connection"),
+    ]
+    for label, key, detail_key in integrations:
+        item = integration.get(key, {}) or {}
+        if item.get("name"):
+            _school_add_label_value(
+                cell,
+                f"•  {label}: ",
+                item.get("name", ""),
+                left=.55,
+            )
+            if item.get(detail_key):
+                _school_add_p(cell, item.get(detail_key, ""), left=.55)
+
+    biblical = integration.get("biblical_text_reflection", {}) or {}
+    if biblical.get("reference"):
+        _school_add_label_value(
+            cell,
+            "•  Biblical Text/Reflection: ",
+            biblical.get("reference", ""),
+            left=.55,
+        )
+    if biblical.get("text"):
+        _school_add_p(cell, biblical.get("text", ""), left=.55)
+    if biblical.get("reflection"):
+        _school_add_p(cell, biblical.get("reflection", ""), left=.55)
+
+    # III. Evaluation/Assessment
+    cell = table.rows[5].cells[0]
+    _school_clear_cell(cell)
+    evaluation = d.get("evaluation_assessment", {}) or {}
+
+    _school_add_p(
+        cell,
+        "III.  Evaluation/Assessment",
+        bold=True,
+        left=.02,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(
+        cell,
+        "A.  Formative Assessment",
+        bold=True,
+        left=.30,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    for item in evaluation.get("formative", []) or []:
+        if item.get("name"):
+            value = f"•  {item.get('name', '')}"
+            if item.get("instruction"):
+                value += f": {item.get('instruction', '')}"
+            _school_add_p(cell, value, left=.55)
+
+    _school_add_p(
+        cell,
+        "B.  Summative Assessment",
+        bold=True,
+        left=.30,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    for item in evaluation.get("summative", []) or []:
+        if item.get("name"):
+            value = f"•  {item.get('name', '')}"
+            if item.get("instruction"):
+                value += f": {item.get('instruction', '')}"
+            _school_add_p(cell, value, left=.55)
+
+    # IV. Summary/Action
+    cell = table.rows[6].cells[0]
+    _school_clear_cell(cell)
+    summary_action = d.get("summary_action", {}) or {}
+
+    _school_add_p(cell, "IV.  Summary/Action", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell, "A.  Summary", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell, summary_action.get("summary", ""), left=.55)
+    _school_add_p(cell, "B.  Action", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell, summary_action.get("action", ""), left=.55)
+
+    # V. Purposive Assignment/Enrichment
+    cell = table.rows[7].cells[0]
+    _school_clear_cell(cell)
+    assignment = d.get("assignment_enrichment", {}) or {}
+
+    _school_add_p(
+        cell,
+        "V.  Purposive Assignment/Enrichment",
+        bold=True,
+        left=.02,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    if assignment.get("assignment"):
+        _school_add_label_value(
+            cell,
+            "Assignment: ",
+            assignment.get("assignment", ""),
+            left=.30,
+        )
+    if assignment.get("instructions"):
+        _school_add_label_value(
+            cell,
+            "Instruction: ",
+            assignment.get("instructions", ""),
+            left=.30,
+        )
+
+    assignment_questions = assignment.get("guide_questions", []) or []
+    if assignment_questions:
+        label = "Guide Question:" if len(assignment_questions) == 1 else "Guide Questions:"
+        _school_add_p(
+            cell,
+            label,
+            bold=True,
+            left=.30,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+        for i, question in enumerate(assignment_questions, 1):
+            _school_add_p(cell, f"{i}.) {question}", left=.55)
+
+    # VI. References
+    cell = table.rows[8].cells[0]
+    _school_clear_cell(cell)
+    _school_add_p(cell, "VI.  References", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
+    for reference in d.get("references", []) or []:
+        if str(reference).strip():
+            _school_add_p(cell, str(reference).strip(), left=.30)
+
+    # --------------------------------------------------------
+    # SIGNATURES - same boxed layout as the school sample
+    # --------------------------------------------------------
+    prepared_title = str(d.get("prepared_by_title", "") or "").strip()
+    if not prepared_title:
+        subject_text = str(d.get("subject", "") or "").strip()
+        prepared_title = f"{subject_text} Teacher" if subject_text else "Teacher"
+
+    signature_row = table.rows[9]
+    signature_data = [
+        (
+            signature_row.cells[0],
+            "Prepared by:",
+            d.get("prepared_by", ""),
+            prepared_title,
+        ),
+        (
+            signature_row.cells[2],
+            "Checked by:",
+            d.get("checked_by", ""),
+            d.get("checked_by_title", ""),
+        ),
+    ]
+    for cell, label, name, title in signature_data:
+        _school_clear_cell(cell)
+        _school_add_p(cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
+        _school_add_p(cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
+        _school_add_p(cell, name, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+        _school_add_p(cell, title, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    noted_cell = table.rows[10].cells[1]
+    _school_clear_cell(noted_cell)
+    _school_add_p(noted_cell, "Noted by:", bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(noted_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(
+        noted_cell,
+        d.get("noted_by", ""),
+        bold=True,
+        align=WD_ALIGN_PARAGRAPH.CENTER,
+    )
+    _school_add_p(
+        noted_cell,
+        d.get("noted_by_title", ""),
+        align=WD_ALIGN_PARAGRAPH.CENTER,
+    )
+
+    # --------------------------------------------------------
+    # STATUS OF IMPLEMENTATION / MODIFICATIONS
+    # --------------------------------------------------------
+    status_row = table.rows[11]
+
+    status_cell = status_row.cells[0]
+    _school_clear_cell(status_cell)
+    _school_add_p(
+        status_cell,
+        "Status of Implementation",
+        bold=True,
+        align=WD_ALIGN_PARAGRAPH.CENTER,
+    )
+    _school_add_p(
+        status_cell,
+        "___Implemented         ___ Partially Implemented",
+        left=.05,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(
+        status_cell,
+        "___Not Implemented",
+        left=.05,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(status_cell, "Remarks:", bold=True, left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(status_cell, "_____________________________________", left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(status_cell, "_____________________________________", left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(status_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(
+        status_cell,
+        "Observed by: _________________________",
+        left=.05,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    _school_add_p(status_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(
+        status_cell,
+        "Date Observed: _______________________",
+        left=.05,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+
+    modifications_cell = status_row.cells[2]
+    _school_clear_cell(modifications_cell)
+    _school_add_p(
+        modifications_cell,
+        "Modifications",
+        bold=True,
+        align=WD_ALIGN_PARAGRAPH.CENTER,
+    )
+    for _ in range(3):
+        _school_add_p(
+            modifications_cell,
+            "_____________________________________",
+            left=.05,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
+    _school_add_p(modifications_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(
+        modifications_cell,
+        "Remarks:",
+        bold=True,
+        left=.05,
+        align=WD_ALIGN_PARAGRAPH.LEFT,
+    )
+    for _ in range(3):
+        _school_add_p(
+            modifications_cell,
+            "_____________________________________",
+            left=.05,
+            align=WD_ALIGN_PARAGRAPH.LEFT,
+        )
 
     out = io.BytesIO()
     doc.save(out)
@@ -724,7 +1111,7 @@ c1, c2 = st.columns(2)
 
 with c1:
     cm_file = st.file_uploader(
-        "📑 Curriculum Map (.docx)",
+        " Curriculum Map (.docx)",
         type=["docx"],
         key="curriculum_map"
     )
