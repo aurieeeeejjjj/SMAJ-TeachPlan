@@ -25,6 +25,75 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+:root {
+    --purple-main: #7C3AED;
+    --purple-dark: #5B21B6;
+    --purple-soft: #F3E8FF;
+    --purple-pale: #FAF5FF;
+    --ink: #24123A;
+}
+.stApp {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FCFAFF 42%, #FAF5FF 100%);
+}
+h1, h2, h3 {
+    color: var(--ink);
+}
+div[data-testid="stFileUploader"] {
+    background: #FAF5FF;
+    border-radius: 16px;
+}
+div[data-testid="stFileUploaderDropzone"] {
+    background: #F3E8FF;
+    border: 1px dashed #A78BFA;
+    border-radius: 14px;
+}
+div[data-testid="stTextInput"] input {
+    background: #FCFAFF;
+    border: 1px solid #D8B4FE;
+    border-radius: 10px;
+}
+div[data-testid="stTextInput"] input:focus {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 1px #7C3AED;
+}
+.stButton > button {
+    background: linear-gradient(90deg, #7C3AED, #6D28D9);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    min-height: 3rem;
+}
+.stButton > button:hover {
+    background: #5B21B6;
+    color: white;
+    border: none;
+}
+.stDownloadButton > button {
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+}
+.stDownloadButton > button:hover {
+    background: #5B21B6;
+    color: white;
+}
+.status-ok {
+    background: #F3E8FF !important;
+    border-left: 4px solid #7C3AED !important;
+    color: #4C1D95 !important;
+}
+.status-no {
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
 .block-container {
     max-width: 900px;
     padding-top: 2rem;
