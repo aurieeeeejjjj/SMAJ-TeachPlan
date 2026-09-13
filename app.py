@@ -241,7 +241,7 @@ SCHEMA: Dict[str, Any] = {
     "essential_understanding": "",
     "essential_question": "",
     "preliminaries": {
-        "review": "",
+        "review": {"lots_question": "", "hots_question": ""},
         "focus": "",
         "resources": [""],
         "motivation": {
@@ -300,7 +300,7 @@ SCHEMA: Dict[str, Any] = {
 }
 
 
-def build_prompt(cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str, session: str, lesson_date: str) -> str:
+def build_prompt(cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str, session: str, lesson_date: str, language: str, subject: str, grade_sections: str, term: str, customization: str) -> str:
     return f"""
 You are a Daily Learning Plan generator for teachers.
 
@@ -317,37 +317,48 @@ UNIT PLAN
 
 REQUESTED LESSON
 ================
+Language: {language}
+Subject: {subject}
+Grade and Section/s: {grade_sections}
+Term: {term}
 Topic from Curriculum Map: {curriculum_topic}
 Specific Lesson Topic / Focus: {specific_lesson_focus}
 Session: {session or "[not supplied]"}
 Date: {lesson_date or "[not supplied]"}
+Teacher Customization / Contextualization: {customization or "[none supplied]"}
 
 RULES
 =====
-1. Generate ONE complete daily lesson plan for the Specific Lesson Topic / Focus.
-2. Use the Topic from Curriculum Map to locate the correct part of the Curriculum Map and Unit Plan.
-3. Use ONLY the Learning Competency or Learning Competencies actually supported by the Curriculum Map or Unit Plan.
-4. NEVER invent a Learning Competency. If no competency from the uploaded files reasonably matches the curriculum topic and specific lesson focus, return an empty learning_competencies list.
-5. Keep strong alignment throughout the lesson:
-   Learning Competency -> Specific Lesson Focus -> Presentation of Concept -> Activities -> Formative Assessment -> Summative Assessment -> Summary/Action.
-6. Every activity must directly practice or apply the selected Learning Competency.
-7. Every formative and summative assessment must directly check the same competency practiced in the activities.
-8. When the curriculum topic is broad, focus only on the teacher's Specific Lesson Topic / Focus so the same broad topic can produce several different daily lesson plans.
-9. Do NOT create learning objectives. Do not include objective statements.
-10. In Presentation of Concept, give only a short explanation or key teaching points for the specific lesson focus. This is not an objectives section.
-11. Preserve source terminology, assessment names, resources, values/integrations, references, grade level, subject, term, and unit when supported by the uploaded files.
-12. Use the Unit Plan's Transfer Goal, Essential Understanding, and Essential Question when available.
-13. Do not borrow topic-specific content from another lesson or competency.
-14. Do not invent school-specific facts, staff names, references, or curriculum requirements.
-15. Activities may be expanded into clear classroom-ready steps, but keep them practical and directly aligned to the competency and lesson focus.
-16. Keep the lesson realistic for one daily session.
-17. The Action statement must begin with "I will..."
-18. Preserve the Biblical reference from the source. Do not invent a Bible quotation if the wording is not provided.
-19. Use the user-supplied Session and Date when present; otherwise leave them blank.
-20. Use simple, natural teacher wording. Keep sentences short, clear, practical, and easy to understand.
-21. Avoid flowery, overly formal, technical, or AI-sounding wording. Use words a classroom teacher would normally use.
-22. Keep instructions and guide questions simple and direct.
-23. Return ONLY valid JSON. Do not use markdown fences or add explanations.
+1. Generate ONE realistic daily lesson plan for the Specific Lesson Topic / Focus in the selected Language (English or Filipino).
+2. Use simple, natural teacher wording: short, clear, practical, understandable sentences, directions, and questions.
+3. Respect Customization / Contextualization unless it conflicts with the Curriculum Map, Unit Plan, or competency.
+4. Keep the COMPLETE lesson realistic for LESS THAN ONE HOUR.
+5. Use ONLY Learning Competency/Competencies supported by the Curriculum Map or Unit Plan. NEVER invent one. If none matches, return an empty learning_competencies list.
+6. Strictly align: Learning Competency -> Specific Lesson Focus -> Daily Objectives -> Presentation -> Activities -> Formative Assessment -> Summative Assessment -> Summary -> Action.
+7. Objectives are based on the competency and MUST NOT exceed its cognitive/performance demand. If it says "discuss," do not require "demonstrate" unless supported.
+8. Transfer Goal, Essential Understanding, and Essential Question MUST come from the relevant Unit Plan when available.
+9. Review uses the previous lesson in source sequence and contains EXACTLY TWO questions: 1 LOTS and 1 HOTS, connecting previous learning to today's lesson.
+10. Focus is today's Specific Lesson Topic / Focus.
+11. Resources use source-listed resources first; add only genuinely needed practical resources such as TV, PPT Presentation, HDMI, Textbook, Notebook, Paper, and Pen.
+12. Motivation directly connects to the lesson, catches attention, is engaging, and brief.
+13. Activating Prior Knowledge is a simple starter QUESTION needed for today's lesson.
+14. Presentation of Concept supplies measurable daily objectives introduced in Word by "The students will be able to…"; never exceed the competency.
+15. Activities align with competency, objectives, Curriculum Map, and focus. Prefer source activities when suitable; otherwise create a simple aligned activity. Use group/individual/both only when appropriate and feasible under one hour.
+16. Broadening provides one simple lesson-related question for EACH Leading, Exploring, Connecting, and Essential Question, progressively deepening thinking.
+17. Ignacian Core Value is Faith, Excellence, or Service. Follow source if stated; otherwise choose the natural fit.
+18. Related values: FAITH—Strong Faith in God, Prophetic Witness to Gospel Values, Nationalism, Justice, Communion. EXCELLENCE—Integrity, Competence, Resourcefulness, Discipline, Self-reliance. SERVICE—Stewardship, Humility, Charity, Courage, Preferential Love of the Poor.
+19. Social Orientation connects learning to family, school, community, or society.
+20. Lesson Across Discipline meaningfully connects another subject with a simple question/connection.
+21. Biblical Text/Reflection genuinely aligns with the lesson. Prefer source material and NEVER fabricate verse wording.
+22. Formative Assessment happens DURING lesson/activity and checks competency/objectives.
+23. Summative Assessment checks today's learning near the end and measures the same competency/objectives.
+24. Summary is a QUESTION leading students to summarize/explain/apply the main learning.
+25. Action is a QUESTION leading students to apply learning in a real situation.
+26. Purposive Assignment/Enrichment strengthens today's learning or prepares tomorrow's lesson.
+27. References use Unit Plan/Curriculum Map first. Added content/ideas require their source. Use APA style as available details allow; never invent missing bibliographic details.
+28. Do not invent staff names, unsupported curriculum requirements, or school-specific facts.
+29. Use teacher-supplied Subject, Grade and Section/s, Term, Session, and Date where appropriate.
+30. Return ONLY valid JSON.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -372,12 +383,9 @@ def extract_json(text: str) -> Dict[str, Any]:
 
 
 def generate_plan(
-    cm_text: str,
-    up_text: str,
-    curriculum_topic: str,
-    specific_lesson_focus: str,
-    session: str,
-    lesson_date: str,
+    cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str,
+    session: str, lesson_date: str, language: str, subject: str,
+    grade_sections: str, term: str, customization: str,
 ) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         raise RuntimeError(
@@ -387,14 +395,7 @@ def generate_plan(
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=build_prompt(
-            cm_text,
-            up_text,
-            curriculum_topic,
-            specific_lesson_focus,
-            session,
-            lesson_date,
-        ),
+        contents=build_prompt(cm_text, up_text, curriculum_topic, specific_lesson_focus, session, lesson_date, language, subject, grade_sections, term, customization),
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.2,
@@ -660,10 +661,14 @@ def build_docx(d: Dict[str, Any]) -> bytes:
     _school_add_p(cell, "I.  Preliminaries", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
 
     _school_add_p(cell, "A.  Review", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell, prelim.get("review", ""), left=.55)
+    review=prelim.get("review",{}) or {}
+    if isinstance(review,dict):
+        if str(review.get("lots_question","") or "").strip(): _school_add_p(cell,f"LOTS: {review.get('lots_question','').strip()}",left=.55)
+        if str(review.get("hots_question","") or "").strip(): _school_add_p(cell,f"HOTS: {review.get('hots_question','').strip()}",left=.55)
+    elif str(review).strip(): _school_add_p(cell,str(review).strip(),left=.55)
 
     _school_add_p(cell, "B.  Focus", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell, prelim.get("focus", ""), left=.55, align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell,d.get("topic",prelim.get("focus","")),left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
 
     _school_add_p(cell, "C.  Resources", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
     for resource in prelim.get("resources", []) or []:
@@ -736,22 +741,11 @@ def build_docx(d: Dict[str, Any]) -> bytes:
 
     _school_add_p(cell, "II.  Lesson Development", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    _school_add_p(
-        cell,
-        "A.  Presentation of Concept",
-        bold=True,
-        left=.30,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-
-    concept_points = lesson.get("presentation_of_concept", []) or []
-    for point in concept_points:
-        if str(point).strip():
-            _school_add_p(
-                cell,
-                str(point).strip(),
-                left=.55,
-            )
+    _school_add_p(cell,"A.  Presentation of Concept",bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    _school_add_p(cell,"The students will be able to…",left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    objectives=lesson.get("presentation_of_concept",[]) or []
+    for i,objective in enumerate(objectives):
+        if str(objective).strip(): _school_add_p(cell,f"{chr(97+i)}.  {str(objective).strip()}",left=.55)
 
     _school_add_p(cell, "B.  Activities", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
     for activity in lesson.get("activities", []) or []:
@@ -1106,89 +1100,37 @@ with c2:
     )
 
 st.subheader("2. Teacher & Lesson Details")
-c_teacher, c_grade = st.columns(2)
+c_teacher, c_subject = st.columns(2)
 with c_teacher:
-    teacher_name = st.text_input(
-        "Teacher Name *",
-        placeholder="Example: Maria Santos"
-    )
+    teacher_name = st.text_input("Teacher's Name *", placeholder="Example: Maria Santos")
+with c_subject:
+    subject_input = st.text_input("Subject *", placeholder="Example: Mathematics")
+c_grade, c_term = st.columns(2)
 with c_grade:
-    grade_level_input = st.text_input(
-        "Grade Level *",
-        placeholder="Example: Grade 8"
-    )
-
-curriculum_topic = st.text_input(
-    "Topic from Curriculum Map *",
-    placeholder="Example: Measures of Central Tendency"
-)
-
-specific_lesson_focus = st.text_input(
-    "Specific Lesson Topic / Focus *",
-    placeholder="Example: Finding the Mean"
-)
-
-st.caption(
-    "Use a specific lesson focus when the curriculum topic is broad. "
-    "This lets you create more than one daily lesson plan from the same broad topic."
-)
-
+    grade_sections_input = st.text_input("Grade and Section/s *", placeholder="Example: Grade 8 - St. Luke, St. John")
+with c_term:
+    term_input = st.text_input("Term *", placeholder="Example: First Term")
+language = st.selectbox("Language *", ["English", "Filipino"])
+curriculum_topic = st.text_input("Topic from Curriculum Map *", placeholder="Example: Measures of Central Tendency")
+specific_lesson_focus = st.text_input("Specific Lesson Topic / Focus *", placeholder="Example: Finding the Mean")
+st.caption("Narrow a broad curriculum topic into the lesson for the day. The same curriculum topic may be used for several daily lesson plans.")
+customization = st.text_area("Customization / Contextualization (Optional)", placeholder="Add special instructions, local examples, preferred activities, student context, or anything you want adjusted.", height=110)
 c3, c4 = st.columns(2)
-with c3:
-    session = st.text_input("Session", placeholder="Example: 6")
-with c4:
-    lesson_date = st.text_input("Date", placeholder="Example: September 15, 2026")
+with c3: session = st.text_input("Session (Optional)", placeholder="Example: Session 1")
+with c4: lesson_date = st.text_input("Date (Optional)", placeholder="Example: September 15, 2026")
 
 st.subheader("3. Requirements Check")
 
 ready = True
-if cm_file:
-    st.markdown('<div class="status-ok">Curriculum Map uploaded</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="status-no">Curriculum Map required</div>', unsafe_allow_html=True)
-    ready = False
-
-if up_file:
-    st.markdown('<div class="status-ok">Unit Plan uploaded</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="status-no">Unit Plan required</div>', unsafe_allow_html=True)
-    ready = False
-
-if teacher_name.strip():
-    st.markdown(
-        f'<div class="status-ok">Teacher: {teacher_name.strip()}</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown('<div class="status-no">Teacher Name required</div>', unsafe_allow_html=True)
-    ready = False
-
-if grade_level_input.strip():
-    st.markdown(
-        f'<div class="status-ok">Grade Level: {grade_level_input.strip()}</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown('<div class="status-no">Grade Level required</div>', unsafe_allow_html=True)
-    ready = False
-
-if curriculum_topic.strip():
-    st.markdown(
-        f'<div class="status-ok">Curriculum Topic: {curriculum_topic.strip()}</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown('<div class="status-no">Topic from Curriculum Map required</div>', unsafe_allow_html=True)
-    ready = False
-
-if specific_lesson_focus.strip():
-    st.markdown(
-        f'<div class="status-ok">Lesson Focus: {specific_lesson_focus.strip()}</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown('<div class="status-no">Specific Lesson Topic / Focus required</div>', unsafe_allow_html=True)
-    ready = False
+for uploaded, ok_text, no_text in [(cm_file,"Curriculum Map uploaded","Curriculum Map required"),(up_file,"Unit Plan uploaded","Unit Plan required")]:
+    if uploaded: st.markdown(f'<div class="status-ok">{ok_text}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="status-no">{no_text}</div>', unsafe_allow_html=True); ready=False
+for label,value in [("Teacher",teacher_name),("Subject",subject_input),("Grade and Section/s",grade_sections_input),("Term",term_input),("Curriculum Topic",curriculum_topic),("Lesson Focus",specific_lesson_focus)]:
+    if value.strip(): st.markdown(f'<div class="status-ok">{label}: {value.strip()}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="status-no">{label} required</div>', unsafe_allow_html=True); ready=False
+st.markdown(f'<div class="status-ok">Language: {language}</div>', unsafe_allow_html=True)
 
 if not GEMINI_API_KEY:
     st.warning(
@@ -1209,17 +1151,16 @@ if st.button(
 
         with st.spinner("Creating your Daily Learning Plan..."):
             data = generate_plan(
-                cm_text=cm_text,
-                up_text=up_text,
-                curriculum_topic=curriculum_topic.strip(),
-                specific_lesson_focus=specific_lesson_focus.strip(),
-                session=session.strip(),
-                lesson_date=lesson_date.strip(),
+                cm_text=cm_text, up_text=up_text, curriculum_topic=curriculum_topic.strip(),
+                specific_lesson_focus=specific_lesson_focus.strip(), session=session.strip(),
+                lesson_date=lesson_date.strip(), language=language, subject=subject_input.strip(),
+                grade_sections=grade_sections_input.strip(), term=term_input.strip(), customization=customization.strip(),
             )
-
-            data["grade_level"] = grade_level_input.strip()
-            data["prepared_by"] = teacher_name.strip()
-            data["topic"] = specific_lesson_focus.strip()
+            data["subject"]=subject_input.strip()
+            data["grade_level"]=grade_sections_input.strip()
+            data["term"]=term_input.strip()
+            data["prepared_by"]=teacher_name.strip()
+            data["topic"]=specific_lesson_focus.strip()
 
             competencies = data.get("learning_competencies", []) or []
             competencies = [str(c).strip() for c in competencies if str(c).strip()]
