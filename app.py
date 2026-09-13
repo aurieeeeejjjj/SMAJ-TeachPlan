@@ -19,7 +19,7 @@ from google import genai
 
 st.set_page_config(
     page_title="Daily Lesson Plan Generator",
-    page_icon="📘",
+    page_icon="",
     layout="centered",
 )
 
@@ -144,7 +144,7 @@ div.stButton > button, div.stDownloadButton > button {
 
 st.markdown("""
 <div class="hero">
-    <h1>📘 Daily Lesson Plan Generator</h1>
+    <h1> Daily Lesson Plan Generator</h1>
     <p>Upload your Curriculum Map and Unit Plan, enter the topic, and download a Word lesson plan.</p>
 </div>
 """, unsafe_allow_html=True)
@@ -295,7 +295,7 @@ SCHEMA: Dict[str, Any] = {
 }
 
 
-def build_prompt(cm_text: str, up_text: str, topic: str, session: str, lesson_date: str) -> str:
+def build_prompt(cm_text: str, up_text: str, topic: str, session: str, lesson_date: str, learning_competency: str, learning_objectives: list[str]) -> str:
     return f"""
 You are a Daily Learning Plan generator for teachers.
 
@@ -315,6 +315,11 @@ REQUESTED LESSON
 Topic: {topic}
 Session: {session or "[not supplied]"}
 Date: {lesson_date or "[not supplied]"}
+Learning Competency supplied by teacher: {learning_competency or "[not supplied]"}
+Learning Objectives supplied by teacher:
+1. {learning_objectives[0] or "[not supplied]"}
+2. {learning_objectives[1] or "[not supplied]"}
+3. {learning_objectives[2] or "[not supplied]"}
 
 RULES
 =====
@@ -324,18 +329,25 @@ RULES
    values/integrations, references, grade level, subject, term, and unit.
 4. Use the Unit Plan's Transfer Goal, Essential Understanding, and Essential Question.
 5. Do not borrow topic-specific content from another lesson.
-6. Do not invent school-specific facts, staff names, references, or curriculum requirements.
-   If a field is not supported by the uploaded files, leave it blank.
-7. Presentation objectives must be measurable, topic-specific, and aligned with the competency.
-8. Activities may be expanded into classroom-ready instructions and steps, but must preserve
+6. Do not invent school-specific facts, staff names, references, or unrelated curriculum requirements.
+   Exception: if the Learning Competency is not supplied by the teacher and cannot be clearly found
+   in the Curriculum Map or Unit Plan, create one reasonable, topic-aligned competency.
+7. Produce EXACTLY THREE learning objectives under lesson_development.presentation_of_concept.
+   Each objective must be measurable, topic-specific, and aligned with the competency.
+   If the teacher supplies an objective, preserve it. If an objective field is blank, derive a suitable
+   objective from the Curriculum Map and Unit Plan; if the source files do not state one, create an
+   appropriate objective for the topic.
+8. If the teacher supplies a Learning Competency, use it exactly. Otherwise, first derive the competency
+   from the Curriculum Map and Unit Plan, and only create one if it is not stated there.
+9. Activities may be expanded into classroom-ready instructions and steps, but must preserve
    the purpose of the activity named in the Curriculum Map or Unit Plan.
-9. Formative and summative assessments must match the source documents.
-10. Keep the lesson realistic for one daily session.
-11. The Action statement must begin with "I will..."
-12. Preserve the Biblical reference in the Curriculum Map. Do not invent a direct Bible quotation
+10. Formative and summative assessments must match the source documents.
+11. Keep the lesson realistic for one daily session.
+12. The Action statement must begin with "I will..."
+13. Preserve the Biblical reference in the Curriculum Map. Do not invent a direct Bible quotation
     if the actual verse wording is not provided by the uploaded files. In that case, leave "text" blank.
-13. Use the user-supplied Session and Date when present; otherwise leave them blank.
-14. Return ONLY valid JSON. Do not use markdown fences or add explanations.
+14. Use the user-supplied Session and Date when present; otherwise leave them blank.
+15. Return ONLY valid JSON. Do not use markdown fences or add explanations.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -365,6 +377,8 @@ def generate_plan(
     topic: str,
     session: str,
     lesson_date: str,
+    learning_competency: str,
+    learning_objectives: list[str],
 ) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         raise RuntimeError(
@@ -374,7 +388,7 @@ def generate_plan(
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=build_prompt(cm_text, up_text, topic, session, lesson_date),
+        contents=build_prompt(cm_text, up_text, topic, session, lesson_date, learning_competency, learning_objectives),
     )
 
     if not response.text:
@@ -703,14 +717,48 @@ with c1:
 
 with c2:
     up_file = st.file_uploader(
-        "📘 Unit Plan (.docx)",
+        " Unit Plan (.docx)",
         type=["docx"],
         key="unit_plan"
     )
 
-st.subheader("2. Lesson Details")
+st.subheader("2. Teacher & Lesson Details")
+c_teacher, c_grade = st.columns(2)
+with c_teacher:
+    teacher_name = st.text_input(
+        "Teacher Name *",
+        placeholder="Example: Maria Santos"
+    )
+with c_grade:
+    grade_level_input = st.text_input(
+        "Grade Level *",
+        placeholder="Example: Grade 8"
+    )
+
+learning_competency = st.text_area(
+    "Learning Competency (Optional)",
+    placeholder="Leave blank to let AI derive it from the Curriculum Map and Unit Plan.",
+    height=90
+)
+
+st.markdown("**Learning Objectives (Optional)**")
+st.caption("You may enter up to three objectives. Any blank objective will be completed by AI based on the Curriculum Map and Unit Plan.")
+
+obj1 = st.text_input(
+    "Learning Objective 1 (Optional)",
+    placeholder="Leave blank for AI-generated objective."
+)
+obj2 = st.text_input(
+    "Learning Objective 2 (Optional)",
+    placeholder="Leave blank for AI-generated objective."
+)
+obj3 = st.text_input(
+    "Learning Objective 3 (Optional)",
+    placeholder="Leave blank for AI-generated objective."
+)
+
 topic = st.text_input(
-    "✏️ Topic *",
+    " Topic *",
     placeholder="Example: Factoring"
 )
 
@@ -724,21 +772,39 @@ st.subheader("3. Requirements Check")
 
 ready = True
 if cm_file:
-    st.markdown('<div class="status-ok">✓ Curriculum Map uploaded</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-ok">Curriculum Map uploaded</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="status-no">✗ Curriculum Map required</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-no">Curriculum Map required</div>', unsafe_allow_html=True)
     ready = False
 
 if up_file:
-    st.markdown('<div class="status-ok">✓ Unit Plan uploaded</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-ok">Unit Plan uploaded</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="status-no">✗ Unit Plan required</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-no">Unit Plan required</div>', unsafe_allow_html=True)
+    ready = False
+
+if teacher_name.strip():
+    st.markdown(
+        f'<div class="status-ok">Teacher: {teacher_name.strip()}</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown('<div class="status-no">Teacher Name required</div>', unsafe_allow_html=True)
+    ready = False
+
+if grade_level_input.strip():
+    st.markdown(
+        f'<div class="status-ok">Grade Level: {grade_level_input.strip()}</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown('<div class="status-no">Grade Level required</div>', unsafe_allow_html=True)
     ready = False
 
 if topic.strip():
-    st.markdown(f'<div class="status-ok">✓ Topic: {topic.strip()}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-ok">Topic: {topic.strip()}</div>', unsafe_allow_html=True)
 else:
-    st.markdown('<div class="status-no">✗ Topic required</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-no">Topic required</div>', unsafe_allow_html=True)
     ready = False
 
 if not GEMINI_API_KEY:
@@ -759,20 +825,51 @@ if st.button(
             up_text = read_docx(up_file)
 
         with st.spinner("Creating your Daily Learning Plan..."):
+            user_objectives = [obj1.strip(), obj2.strip(), obj3.strip()]
+
             data = generate_plan(
                 cm_text=cm_text,
                 up_text=up_text,
                 topic=topic.strip(),
                 session=session.strip(),
                 lesson_date=lesson_date.strip(),
+                learning_competency=learning_competency.strip(),
+                learning_objectives=user_objectives,
             )
+
+            # Required form values are inserted directly into the Word document data.
+            data["grade_level"] = grade_level_input.strip()
+            data["prepared_by"] = teacher_name.strip()
+
+            # Learning Competency is optional:
+            # use the teacher's entry when supplied; otherwise keep the AI-derived/generated value.
+            if learning_competency.strip():
+                data["learning_competencies"] = [learning_competency.strip()]
+
+            # Learning Objectives are optional:
+            # preserve teacher-entered objectives and let AI fill blank positions.
+            lesson_dev = data.setdefault("lesson_development", {})
+            ai_objectives = lesson_dev.get("presentation_of_concept", [])
+            if not isinstance(ai_objectives, list):
+                ai_objectives = [str(ai_objectives)] if ai_objectives else []
+
+            merged_objectives = []
+            for i in range(3):
+                if user_objectives[i]:
+                    merged_objectives.append(user_objectives[i])
+                elif i < len(ai_objectives) and str(ai_objectives[i]).strip():
+                    merged_objectives.append(str(ai_objectives[i]).strip())
+                else:
+                    merged_objectives.append("")
+
+            lesson_dev["presentation_of_concept"] = merged_objectives
 
         with st.spinner("Preparing the Word document..."):
             docx_bytes = build_docx(data)
 
         st.session_state["generated_docx"] = docx_bytes
         st.session_state["generated_topic"] = topic.strip()
-        st.success("✅ Lesson plan ready!")
+        st.success(" Lesson plan ready!")
 
     except Exception as exc:
         error_text = str(exc).lower()
@@ -801,7 +898,7 @@ if "generated_docx" in st.session_state:
     ).strip("_") or "Lesson"
 
     st.download_button(
-        "📄 DOWNLOAD WORD FILE (.DOCX)",
+        " DOWNLOAD WORD FILE (.DOCX)",
         data=st.session_state["generated_docx"],
         file_name=f"Daily_Learning_Plan_{safe_topic}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
