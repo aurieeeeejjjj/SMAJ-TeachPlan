@@ -36,156 +36,198 @@ try:
 except Exception:
     LOGO_B64 = ""
 
-st.markdown("""
+BG_PATH = Path(__file__).with_name("smaj_blue_background.png")
+try:
+    BG_B64 = base64.b64encode(BG_PATH.read_bytes()).decode("ascii")
+except Exception:
+    BG_B64 = ""
+
+st.markdown(f"""
 <style>
-:root {
-    --purple-deep: #3B0764;
-    --purple-main: #581C87;
-    --purple-mid: #6B21A8;
-    --purple-bright: #7E22CE;
-    --purple-soft: #F3E8FF;
+:root {{
+    --blue-deep: #061A40;
+    --blue-main: #0B3D91;
+    --blue-mid: #1368CE;
+    --blue-bright: #2F80ED;
+    --blue-soft: #EAF4FF;
+    --blue-pale: #F7FBFF;
     --white: #FFFFFF;
-    --ink: #2E1065;
-}
+    --ink: #08224D;
+}}
 
-/* Purple-dominant app background */
-.stApp {
-    background: linear-gradient(145deg, #3B0764 0%, #581C87 48%, #6B21A8 100%);
+/* User-provided technology background + dark overlay for readable text */
+.stApp {{
+    background:
+        linear-gradient(rgba(3, 18, 51, .78), rgba(5, 36, 83, .84)),
+        url("data:image/png;base64,{{BG_B64}}") center center / cover fixed no-repeat;
     color: #FFFFFF;
-}
-.block-container {
-    max-width: 930px;
-    padding-top: 1.4rem;
+}}
+
+.block-container {{
+    max-width: 960px;
+    padding-top: 1.35rem;
     padding-bottom: 3rem;
-}
+}}
 
-/* Keep all main headings/labels readable on purple */
-h1, h2, h3, p, .stMarkdown, label,
-div[data-testid="stWidgetLabel"] p,
-div[data-testid="stFileUploader"] section small {
+/* Main text remains readable on blue background */
+h1, h2, h3,
+div[data-testid="stWidgetLabel"] p {{
     color: #FFFFFF !important;
-}
+    text-shadow: 0 1px 2px rgba(0,0,0,.22);
+}}
 
-/* White hero card */
-.hero-card {
-    background: #FFFFFF;
+/* Hero */
+.hero-card {{
+    background: rgba(255,255,255,.97);
     color: var(--ink);
     border-radius: 24px;
-    padding: 1.35rem 1.2rem 1.15rem;
+    padding: 1.4rem 1.25rem 1.15rem;
     text-align: center;
     margin-bottom: 1.4rem;
-    box-shadow: 0 16px 38px rgba(25, 0, 45, .26);
-    border: 2px solid rgba(255,255,255,.68);
-}
-.hero-card img {
-    width: 118px;
-    height: 118px;
+    box-shadow: 0 18px 44px rgba(0, 18, 55, .38);
+    border: 1px solid rgba(255,255,255,.86);
+    backdrop-filter: blur(8px);
+}}
+.hero-card img {{
+    width: 116px;
+    height: 116px;
     object-fit: contain;
     margin-bottom: .35rem;
-}
-.hero-card h1 {
-    color: var(--purple-main) !important;
-    margin: .1rem 0 .25rem;
-    font-size: 2.05rem;
-    font-weight: 800;
-}
-.hero-card p {
-    color: #4C1D95 !important;
+}}
+.hero-card h1 {{
+    color: var(--blue-main) !important;
+    text-shadow: none !important;
+    margin: .08rem 0 .22rem;
+    font-size: 2.08rem;
+    font-weight: 850;
+}}
+.hero-card p {{
+    color: #244A7C !important;
     margin: 0;
     font-size: .98rem;
-}
-.hero-card .school-name {
-    color: #3B0764 !important;
-    font-size: .88rem;
+}}
+.hero-card .school-name {{
+    color: var(--blue-deep) !important;
+    font-size: .9rem;
+    font-weight: 800;
+    letter-spacing: .035em;
+    margin-bottom: .18rem;
+}}
+.hero-card .developer-line {{
+    margin-top: .45rem;
+    color: #376CA8 !important;
+    font-size: .8rem;
     font-weight: 700;
-    letter-spacing: .03em;
-    margin-bottom: .2rem;
-}
+}}
 
-/* Inputs: white fields with dark text */
+/* Section cards */
+div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stFileUploader"]) {{
+    border-radius: 16px;
+}}
+
+/* Input labels and captions */
+label, .stCaption, [data-testid="stCaptionContainer"] p {{
+    color: #F5FAFF !important;
+}}
+.small {{
+    color: #D8EBFF !important;
+}}
+
+/* White input fields */
 div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea,
-div[data-baseweb="select"] > div {
-    background: #FFFFFF !important;
-    color: #2E1065 !important;
-    border: 2px solid #D8B4FE !important;
+div[data-baseweb="select"] > div {{
+    background: rgba(255,255,255,.98) !important;
+    color: #08224D !important;
+    border: 2px solid #73B7FF !important;
     border-radius: 11px !important;
-}
+    box-shadow: 0 4px 12px rgba(0,40,100,.12);
+}}
 div[data-testid="stTextInput"] input::placeholder,
-div[data-testid="stTextArea"] textarea::placeholder {
-    color: #7C6B8E !important;
+div[data-testid="stTextArea"] textarea::placeholder {{
+    color: #6C84A6 !important;
     opacity: 1 !important;
-}
+}}
 div[data-baseweb="select"] span,
-div[data-baseweb="select"] div {
-    color: #2E1065 !important;
-}
+div[data-baseweb="select"] div {{
+    color: #08224D !important;
+}}
 
-/* Uploaders */
-div[data-testid="stFileUploader"] {
-    background: rgba(255,255,255,.10);
-    border: 1px solid rgba(255,255,255,.20);
+/* Upload boxes */
+div[data-testid="stFileUploader"] {{
+    background: rgba(9, 56, 116, .62);
+    border: 1px solid rgba(255,255,255,.26);
     border-radius: 16px;
-    padding: .35rem;
-}
-div[data-testid="stFileUploaderDropzone"] {
-    background: #FFFFFF !important;
-    border: 2px dashed #C084FC !important;
+    padding: .4rem;
+    box-shadow: 0 8px 22px rgba(0,18,55,.18);
+}}
+div[data-testid="stFileUploaderDropzone"] {{
+    background: rgba(255,255,255,.98) !important;
+    border: 2px dashed #3D9CFF !important;
     border-radius: 14px !important;
-}
-div[data-testid="stFileUploaderDropzone"] * {
-    color: #3B0764 !important;
-}
+}}
+div[data-testid="stFileUploaderDropzone"] * {{
+    color: #0B3D91 !important;
+}}
 
 /* Buttons */
-.stButton > button, .stDownloadButton > button {
+.stButton > button, .stDownloadButton > button {{
     width: 100%;
     min-height: 3rem;
     border-radius: 12px;
-    font-weight: 800;
-    background: #FFFFFF !important;
-    color: #581C87 !important;
-    border: 2px solid #FFFFFF !important;
-    box-shadow: 0 8px 20px rgba(29,0,50,.20);
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-    background: #F3E8FF !important;
-    color: #3B0764 !important;
-    border-color: #F3E8FF !important;
-}
+    font-weight: 850;
+    background: linear-gradient(135deg, #0B3D91, #1368CE) !important;
+    color: #FFFFFF !important;
+    border: 2px solid #70B7FF !important;
+    box-shadow: 0 10px 24px rgba(0, 28, 82, .30);
+}}
+.stButton > button:hover, .stDownloadButton > button:hover {{
+    background: linear-gradient(135deg, #1368CE, #2F80ED) !important;
+    color: #FFFFFF !important;
+    border-color: #B8DCFF !important;
+    transform: translateY(-1px);
+}}
 
-/* Status chips */
-.status-ok {
+/* Requirement status cards */
+.status-ok {{
     padding: .62rem .82rem;
     border-radius: 10px;
-    background: #FFFFFF !important;
-    border-left: 5px solid #A855F7 !important;
-    color: #4C1D95 !important;
+    background: rgba(255,255,255,.97) !important;
+    border-left: 5px solid #2F80ED !important;
+    color: #0B3D91 !important;
     margin-bottom: .45rem;
-}
-.status-no {
+    box-shadow: 0 4px 12px rgba(0,25,75,.14);
+}}
+.status-no {{
     padding: .62rem .82rem;
     border-radius: 10px;
-    background: #FDECEC !important;
+    background: #FFF0F0 !important;
+    border-left: 5px solid #D64545 !important;
     color: #8B1E2D !important;
     margin-bottom: .45rem;
-}
+}}
 
-/* Alerts retain contrast */
-div[data-testid="stAlert"] * { color: inherit !important; }
+/* Alerts */
+div[data-testid="stAlert"] {{
+    border-radius: 12px;
+}}
+div[data-testid="stAlert"] * {{
+    color: inherit !important;
+}}
 
-.developer {
+/* Divider */
+hr {{
+    border-color: rgba(255,255,255,.32) !important;
+}}
+
+/* Footer */
+.developer {{
     text-align: center;
-    color: #F3E8FF !important;
+    color: #E6F3FF !important;
     font-size: .88rem;
     margin-top: 1.2rem;
-    font-weight: 600;
-}
-.small {
-    font-size: .88rem;
-    color: #F3E8FF !important;
-    opacity: .95;
-}
+    font-weight: 700;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -195,8 +237,10 @@ st.markdown(
     <div class="hero-card">
         {logo_html}
         <div class="school-name">ST. MARY'S ACADEMY OF JASAAN, INC.</div>
-        <h1>Daily Lesson Plan Generator</h1>
-        <p>Upload the Curriculum Map and Unit Plan, enter the lesson details, and download the Word learning plan.</p>
+        <h1>SMAJ TeachPlan</h1>
+        <p>Daily Lesson Plan Generator</p>
+        <p style="margin-top:.35rem;">Simple, aligned, student-friendly lesson planning for Marian educators.</p>
+        <div class="developer-line">Developer: Aurie Joy Ellevera</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1066,3 +1110,5 @@ st.markdown(
     '</p>',
     unsafe_allow_html=True
 )
+
+st.markdown('<div class="developer">Developer: Aurie Joy Ellevera</div>', unsafe_allow_html=True)
