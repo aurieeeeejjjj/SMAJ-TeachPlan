@@ -1,59 +1,65 @@
-# Shareable Daily Lesson Plan Generator
+[README.md](https://github.com/user-attachments/files/32154963/README.md)
+# SMAJ TeachPlan — Gemini Free-Tier Version v2
 
-This version is designed to be DEPLOYED ONLINE so your co-teachers can use one website link.
+This version uses the Google Gemini API and now includes required Teacher Name and Grade Level fields.
 
-## What teachers see
+## What teachers do
 
-They only need to:
-1. Upload a Curriculum Map (.docx)
-2. Upload a Unit Plan (.docx)
-3. Enter the lesson topic
-4. Optionally enter session/date
-5. Click GENERATE LESSON PLAN
-6. Download the generated Word (.docx) file
+1. Upload the Curriculum Map (.docx)
+2. Upload the Unit Plan (.docx)
+3. Enter Teacher Name
+4. Enter Grade Level
+5. Enter the lesson topic
+6. Optionally enter session/date
+7. Click GENERATE LESSON PLAN
+8. Download the generated Word (.docx) file
 
-Teachers do NOT need to enter an OpenAI API key.
+## Automatic Word placement
 
-## Files
+- Grade Level is automatically inserted into the lesson plan header.
+- Teacher Name is automatically inserted in the "Prepared by" section.
+- These values come directly from the form, so the AI cannot accidentally change or omit them.
 
-- `app.py` - website
-- `requirements.txt` - Python packages
-- `.streamlit/config.toml` - visual theme
-- `.streamlit/secrets.toml.example` - example private settings
+## GitHub update
 
-## Recommended simple deployment: Streamlit Community Cloud
+Replace these files in your repository:
 
-1. Create a GitHub repository.
-2. Upload these project files to that repository.
-3. Do NOT upload a real API key.
-4. In Streamlit Community Cloud, create a new app using the repository.
-5. Set the main file path to:
-   `app.py`
-6. In the app's Secrets/settings area, add:
+- `app.py`
+- `requirements.txt` (same Gemini requirements; replacing it is safe)
 
-   OPENAI_API_KEY = "YOUR_REAL_KEY"
-   OPENAI_MODEL = "gpt-5.6-luna"
+Keep `.streamlit/config.toml`.
 
-7. Deploy the app.
-8. Streamlit will give you a public website address that you can send to your co-teachers.
+## Streamlit Secrets
 
-## Optional password
+GEMINI_API_KEY = "YOUR_REAL_GEMINI_API_KEY"
+GEMINI_MODEL = "gemini-2.5-flash-lite"
 
-If you only want your co-teachers to use the site, add this to the private Secrets:
+Optional:
+SITE_PASSWORD = "your-school-password"
 
-SITE_PASSWORD = "choose-a-password"
+Never upload your real API key to GitHub.
 
-Then visitors must enter that password before they can use the generator.
 
-## Important API cost note
+## Purple interface v3
 
-The website owner's OpenAI API key pays for generations made through the website.
-If many teachers use the site frequently, API usage can increase.
+The interface now uses a clean purple theme:
+- purple buttons and accents
+- soft lavender upload areas
+- light purple input borders
+- subtle purple page background
+- teacher-friendly, uncluttered layout
 
-For shared use, `gpt-5.6-luna` is set as the default because it is designed for lower-cost,
-high-volume workloads. You can change the model using the private `OPENAI_MODEL` secret.
+For the full purple theme, update both `app.py` and `.streamlit/config.toml` on GitHub.
 
-## Security
 
-Never type a real OpenAI API key directly into `app.py` and never publish it to GitHub.
-Keep it only in the hosting service's private Secrets / environment-variable settings.
+## Aesthetic Purple Interface v4
+
+This version removes decorative icons and uses a cleaner, more elegant visual style:
+- no icons or emojis in the interface
+- soft purple and lavender palette
+- rounded cards and input fields
+- subtle shadows and gradients
+- centered, minimalist title
+- professional teacher-friendly appearance
+
+Update both `app.py` and `.streamlit/config.toml` on GitHub.
