@@ -155,35 +155,35 @@ div[data-baseweb="select"] div {{
 
 
 /* Extra visibility for dropdown text/options */
-div[data-baseweb="select"] > div {
+div[data-baseweb="select"] > div {{
     min-height: 3rem !important;
     font-size: 1rem !important;
     font-weight: 750 !important;
-}
-div[data-baseweb="select"] svg {
+}}
+div[data-baseweb="select"] svg {{
     fill: #08224D !important;
-}
+}}
 ul[role="listbox"],
-div[role="listbox"] {
+div[role="listbox"] {{
     background: #FFFFFF !important;
-}
+}}
 li[role="option"],
-div[role="option"] {
+div[role="option"] {{
     background: #FFFFFF !important;
     color: #08224D !important;
     font-size: 1rem !important;
     font-weight: 700 !important;
-}
+}}
 li[role="option"]:hover,
-div[role="option"]:hover {
+div[role="option"]:hover {{
     background: #EAF4FF !important;
     color: #062D67 !important;
-}
-div[data-testid="stWidgetLabel"] p {
+}}
+div[data-testid="stWidgetLabel"] p {{
     color: #FFFFFF !important;
     font-weight: 800 !important;
     font-size: 1rem !important;
-}
+}}
 
 /* Upload boxes */
 div[data-testid="stFileUploader"] {{
