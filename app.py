@@ -391,7 +391,7 @@ SCHEMA: Dict[str, Any] = {
 }
 
 
-def build_prompt(cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str, session: str, lesson_date: str, language: str, subject: str, grade_sections: str, term: str, customization: str) -> str:
+def build_prompt(cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str, session: str, lesson_date: str, language: str, subject: str, grade_sections: str, term: str, customization: str, summative_choice: str, web_reference_research: str) -> str:
     return f"""
 You are a Daily Learning Plan generator for teachers.
 
@@ -417,6 +417,11 @@ Specific Lesson Topic / Focus: {specific_lesson_focus}
 Session: {session or "[not supplied]"}
 Date: {lesson_date or "[not supplied]"}
 Teacher Customization / Contextualization: {customization or "[none supplied]"}
+Preferred Summative Assessment: {summative_choice or "Automatic (AI decides)"}
+
+VERIFIED WEB REFERENCE RESEARCH
+===============================
+{web_reference_research or "[No web reference research was returned. Use a real textbook/source explicitly identified in the Unit Plan and never invent a source.]"}
 
 RULES
 =====
@@ -476,6 +481,17 @@ STUDENT-FRIENDLY AND HUMANIZED WORDING
 52. REFERENCES: prioritize references already named in the Curriculum Map or Unit Plan. Format bibliographic references in APA style as far as the available details allow. If a reliable source URL is explicitly available in the uploaded documents, include it. Never invent an author, title, year, publisher, DOI, or URL. If source details are incomplete, include only the details actually supported rather than fabricating missing information.
 53. If outside information is used to enrich the lesson, identify a real, relevant, reliable source in the references. Do not output a made-up link. If no verified URL is available in the provided source context, an APA-style source without a fabricated URL is better than an invented link.
 54. Keep the exact Word template structure, columns, section order, and formatting unchanged. These content rules must not alter the document layout.
+55. SUMMATIVE ASSESSMENT CHOICE: Follow the teacher's Preferred Summative Assessment when it is not "Automatic (AI decides)". If it is Automatic, choose the most suitable assessment based on the competency, lesson focus, Curriculum Map, and Unit Plan.
+56. If Preferred Summative Assessment is "Multiple Choice Quiz (10 items)", create EXACTLY 10 multiple-choice items. Each item must have a clear question, choices A–D, and the correct answer. Keep every item aligned with today's competency/objectives.
+57. If it is "Enumeration (10 items)", create EXACTLY 10 answerable enumeration/short-response items with the expected correct answer for each item.
+58. If it is "Open-ended / Essay (3 items)", create EXACTLY 3 clear open-ended/essay questions plus a concise expected-answer guide or key points for each.
+59. If it is "Long Quiz (20 items)", create EXACTLY 20 aligned items. Use an appropriate mix of objective item types when useful, with clear choices where applicable and a correct answer/answer key for every item.
+60. Assessment numbering must appear ONLY ONCE. Do not put numbering such as "1.)" inside an item string if the Word builder will number it. The final Word output must look like "1.) Question..." and never "1.) 1. Question..." or "2.) 2. Question...".
+61. For multiple choice, put the question as one item and place choices A., B., C., D. immediately below it, followed by "Correct Answer: ...". Make the layout clean and easy for a teacher to use.
+62. For formative assessment, include actual ready-to-use questions/tasks and answers or expected responses when appropriate. It must measure learning during the lesson, not merely name an assessment.
+63. REFERENCES: Do NOT list generic entries such as "Curriculum Map - ..." or "Unit Plan - ...". Instead, extract any real textbook/book/reference named inside those documents and format it in APA style as far as the available details allow.
+64. Also use the VERIFIED WEB REFERENCE RESEARCH above to include 1–3 reliable internet sources directly related to the specific lesson. Include a usable URL when supplied by the verified search. Prefer authoritative educational, government, university, publisher, or reputable subject-specific sources.
+65. Never invent a website, URL, author, year, title, edition, or publisher. If a textbook is named in the Unit Plan, preserve that real textbook reference and combine it with the relevant verified internet source(s).
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
@@ -499,10 +515,47 @@ def extract_json(text: str) -> Dict[str, Any]:
         raise
 
 
+
+def research_references(client, subject: str, topic: str, lesson_focus: str, up_text: str) -> str:
+    """Find real lesson-related web references with Google Search grounding."""
+    prompt = f"""
+Find 2 to 4 reliable web references directly related to this school lesson.
+
+Subject: {subject}
+Broad topic: {topic}
+Specific lesson focus: {lesson_focus}
+
+The Unit Plan may also name a textbook or source:
+{up_text[-5000:]}
+
+Requirements:
+- Prefer official government/education sites, universities, established publishers, or reputable subject-specific organizations.
+- Give each web source in APA-style form as far as the page provides the details, followed by its real URL.
+- If the Unit Plan clearly names a textbook, also restate that textbook information separately using ONLY the bibliographic details actually present in the Unit Plan.
+- Do not call the Curriculum Map or Unit Plan itself a reference.
+- Do not invent missing authors, dates, editions, publishers, or URLs.
+- Return concise reference research only.
+"""
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                temperature=0.1,
+                max_output_tokens=2500,
+            ),
+        )
+        return (response.text or "").strip()
+    except Exception:
+        # Reference search should not prevent the teacher from generating the lesson.
+        return ""
+
+
 def generate_plan(
     cm_text: str, up_text: str, curriculum_topic: str, specific_lesson_focus: str,
     session: str, lesson_date: str, language: str, subject: str,
-    grade_sections: str, term: str, customization: str,
+    grade_sections: str, term: str, customization: str, summative_choice: str,
 ) -> Dict[str, Any]:
     if not GEMINI_API_KEY:
         raise RuntimeError(
@@ -510,9 +563,22 @@ def generate_plan(
         )
 
     client = genai.Client(api_key=GEMINI_API_KEY)
+
+    web_reference_research = research_references(
+        client=client,
+        subject=subject,
+        topic=curriculum_topic,
+        lesson_focus=specific_lesson_focus,
+        up_text=up_text,
+    )
+
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=build_prompt(cm_text, up_text, curriculum_topic, specific_lesson_focus, session, lesson_date, language, subject, grade_sections, term, customization),
+        contents=build_prompt(
+            cm_text, up_text, curriculum_topic, specific_lesson_focus, session,
+            lesson_date, language, subject, grade_sections, term, customization,
+            summative_choice, web_reference_research
+        ),
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.2,
@@ -895,7 +961,18 @@ def build_docx(d: Dict[str, Any]) -> bytes:
         if ins: add(c,ins,left=.55)
         items=item.get("items",[]) or item.get("questions",[]) or []
         for i,q in enumerate(items,1):
-            if str(q).strip(): add(c,f"{i}.) {str(q).strip()}",left=.70)
+            qtext=str(q).strip()
+            if not qtext:
+                continue
+            # Prevent duplicate numbering such as "1.) 1. Question".
+            qtext=re.sub(r"^\s*\d+\s*[\.\)]\s*", "", qtext)
+            qtext=re.sub(r"^\s*\d+\s*\.\)\s*", "", qtext)
+            # Preserve clean multi-line MCQ/answer formatting.
+            parts=[part.strip() for part in qtext.split("\\n") if part.strip()]
+            if parts:
+                add(c,f"{i}.) {parts[0]}",left=.70)
+                for part in parts[1:]:
+                    add(c,part,left=.92)
     add(c,L["summative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("summative",[]) or []:
         name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
@@ -903,7 +980,18 @@ def build_docx(d: Dict[str, Any]) -> bytes:
         if ins: add(c,ins,left=.55)
         items=item.get("items",[]) or item.get("questions",[]) or []
         for i,q in enumerate(items,1):
-            if str(q).strip(): add(c,f"{i}.) {str(q).strip()}",left=.70)
+            qtext=str(q).strip()
+            if not qtext:
+                continue
+            # Prevent duplicate numbering such as "1.) 1. Question".
+            qtext=re.sub(r"^\s*\d+\s*[\.\)]\s*", "", qtext)
+            qtext=re.sub(r"^\s*\d+\s*\.\)\s*", "", qtext)
+            # Preserve clean multi-line MCQ/answer formatting.
+            parts=[part.strip() for part in qtext.split("\\n") if part.strip()]
+            if parts:
+                add(c,f"{i}.) {parts[0]}",left=.70)
+                for part in parts[1:]:
+                    add(c,part,left=.92)
 
     # IV. Summary/Action
     sa=d.get("summary_action",{}) or {}
@@ -927,7 +1015,13 @@ def build_docx(d: Dict[str, Any]) -> bytes:
     c=table.rows[8].cells[0]; clear(c)
     add(c,L["references"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
     for ref in d.get("references",[]) or []:
-        if str(ref).strip(): add(c,str(ref).strip(),left=.30)
+        ref_text=str(ref).strip()
+        if not ref_text:
+            continue
+        low=ref_text.lower()
+        if ("curriculum map" in low or "unit plan" in low) and not ("http://" in low or "https://" in low):
+            continue
+        add(c,ref_text,left=.30)
 
     # Signatures: exact sample columns.
     prepared_title=str(d.get("prepared_by_title","") or "").strip()
@@ -998,6 +1092,19 @@ with c_grade:
 with c_term:
     term_input = st.text_input("Term *", placeholder="Example: First Term")
 language = st.selectbox("Language *", ["English", "Filipino"])
+
+summative_choice = st.selectbox(
+    "Preferred Summative Assessment (Optional)",
+    [
+        "Automatic (AI decides)",
+        "Multiple Choice Quiz (10 items)",
+        "Enumeration (10 items)",
+        "Open-ended / Essay (3 items)",
+        "Long Quiz (20 items)",
+    ],
+    help="Leave this on Automatic if you want the AI to choose the assessment based on the Curriculum Map and lesson."
+)
+
 curriculum_topic = st.text_input("Topic from Curriculum Map *", placeholder="Example: Measures of Central Tendency")
 specific_lesson_focus = st.text_input("Specific Lesson Topic / Focus *", placeholder="Example: Finding the Mean")
 st.caption("Narrow a broad curriculum topic into the lesson for the day. The same curriculum topic may be used for several daily lesson plans.")
@@ -1042,6 +1149,7 @@ if st.button(
                 specific_lesson_focus=specific_lesson_focus.strip(), session=session.strip(),
                 lesson_date=lesson_date.strip(), language=language, subject=subject_input.strip(),
                 grade_sections=grade_sections_input.strip(), term=term_input.strip(), customization=customization.strip(),
+                summative_choice=summative_choice,
             )
             data["language"]=language
             data["subject"]=subject_input.strip()
