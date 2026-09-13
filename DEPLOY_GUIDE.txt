@@ -1,0 +1,53 @@
+SHAREABLE WEBSITE - SIMPLE SETUP GUIDE
+
+WHAT YOU ARE BUILDING
+---------------------
+Your co-teachers will receive ONE website link.
+They will not install Python or see an API key.
+
+Their workflow:
+Upload Curriculum Map
+        +
+Upload Unit Plan
+        +
+Enter Topic
+        ↓
+Generate Lesson Plan
+        ↓
+Download .DOCX
+
+
+WHAT YOU NEED TO DO ONCE
+------------------------
+1. Put this project in a GitHub repository.
+2. Deploy it using Streamlit Community Cloud.
+3. Put your OpenAI API key in the website's PRIVATE Secrets.
+4. Share the website link with your co-teachers.
+
+DO NOT put your real API key inside the code or upload it publicly.
+
+FILES TO UPLOAD TO GITHUB
+-------------------------
+app.py
+requirements.txt
+.streamlit/config.toml
+
+You may also upload README.md.
+
+DO NOT upload a real secrets.toml file.
+
+PRIVATE SECRETS TO ADD DURING DEPLOYMENT
+----------------------------------------
+OPENAI_API_KEY = "your real OpenAI API key"
+OPENAI_MODEL = "gpt-5.6-luna"
+
+Optional:
+SITE_PASSWORD = "a password only your co-teachers know"
+
+AFTER DEPLOYMENT
+----------------
+You will receive a website address.
+Send that address to your co-teachers.
+
+They will simply open the link, upload their CM + UP,
+enter the topic, click Generate, and download the Word file.
