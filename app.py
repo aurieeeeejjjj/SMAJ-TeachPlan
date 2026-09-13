@@ -58,7 +58,7 @@ st.markdown(f"""
 /* User-provided technology background + dark overlay for readable text */
 .stApp {{
     background:
-        linear-gradient(rgba(3, 18, 51, .78), rgba(5, 36, 83, .84)),
+        linear-gradient(rgba(3, 18, 51, .42), rgba(5, 36, 83, .52)),
         url("data:image/png;base64,{{BG_B64}}") center center / cover fixed no-repeat;
     color: #FFFFFF;
 }}
@@ -240,7 +240,6 @@ st.markdown(
         <h1>SMAJ TeachPlan</h1>
         <p>Daily Lesson Plan Generator</p>
         <p style="margin-top:.35rem;">Simple, aligned, student-friendly lesson planning for Marian educators.</p>
-        <div class="developer-line">Developer: Aurie Joy Ellevera</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1104,11 +1103,14 @@ if "generated_docx" in st.session_state:
     )
 
 st.markdown(
-    '<p class="developer">Developer: Aurie Joy Ellevera</p>'
+    ''
     '<p class="small" style="text-align:center;margin-top:.3rem;">'
     'Your uploaded files are used to generate the requested lesson plan during this session.'
     '</p>',
     unsafe_allow_html=True
 )
 
-st.markdown('<div class="developer">Developer: Aurie Joy Ellevera</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="developer">Developer: Aurie Joy D. Ellevera</div>',
+    unsafe_allow_html=True
+)
