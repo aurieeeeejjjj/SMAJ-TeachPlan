@@ -1,5 +1,6 @@
 
 import io
+import base64
 import json
 import os
 import re
@@ -29,131 +30,177 @@ st.set_page_config(
     layout="centered",
 )
 
+LOGO_PATH = Path(__file__).with_name("smaj_logo.png")
+try:
+    LOGO_B64 = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+except Exception:
+    LOGO_B64 = ""
+
 st.markdown("""
 <style>
 :root {
-    --purple-main: #7C3AED;
-    --purple-dark: #5B21B6;
+    --purple-deep: #3B0764;
+    --purple-main: #581C87;
+    --purple-mid: #6B21A8;
+    --purple-bright: #7E22CE;
     --purple-soft: #F3E8FF;
-    --purple-pale: #FAF5FF;
-    --ink: #24123A;
+    --white: #FFFFFF;
+    --ink: #2E1065;
 }
+
+/* Purple-dominant app background */
 .stApp {
-    background: linear-gradient(180deg, #FFFFFF 0%, #FCFAFF 42%, #FAF5FF 100%);
+    background: linear-gradient(145deg, #3B0764 0%, #581C87 48%, #6B21A8 100%);
+    color: #FFFFFF;
 }
-h1, h2, h3 {
-    color: var(--ink);
-}
-div[data-testid="stFileUploader"] {
-    background: #FAF5FF;
-    border-radius: 16px;
-}
-div[data-testid="stFileUploaderDropzone"] {
-    background: #F3E8FF;
-    border: 1px dashed #A78BFA;
-    border-radius: 14px;
-}
-div[data-testid="stTextInput"] input {
-    background: #FCFAFF;
-    border: 1px solid #D8B4FE;
-    border-radius: 10px;
-}
-div[data-testid="stTextInput"] input:focus {
-    border-color: #7C3AED;
-    box-shadow: 0 0 0 1px #7C3AED;
-}
-.stButton > button {
-    background: linear-gradient(90deg, #7C3AED, #6D28D9);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-weight: 700;
-    min-height: 3rem;
-}
-.stButton > button:hover {
-    background: #5B21B6;
-    color: white;
-    border: none;
-}
-.stDownloadButton > button {
-    background: #7C3AED;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-weight: 700;
-}
-.stDownloadButton > button:hover {
-    background: #5B21B6;
-    color: white;
-}
-.status-ok {
-    background: #F3E8FF !important;
-    border-left: 4px solid #7C3AED !important;
-    color: #4C1D95 !important;
-}
-.status-no {
-    border-radius: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-st.markdown("""
-<style>
 .block-container {
-    max-width: 900px;
-    padding-top: 2rem;
+    max-width: 930px;
+    padding-top: 1.4rem;
     padding-bottom: 3rem;
 }
-.hero {
+
+/* Keep all main headings/labels readable on purple */
+h1, h2, h3, p, .stMarkdown, label,
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stFileUploader"] section small {
+    color: #FFFFFF !important;
+}
+
+/* White hero card */
+.hero-card {
+    background: #FFFFFF;
+    color: var(--ink);
+    border-radius: 24px;
+    padding: 1.35rem 1.2rem 1.15rem;
     text-align: center;
-    padding: 1rem 0 .6rem 0;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 16px 38px rgba(25, 0, 45, .26);
+    border: 2px solid rgba(255,255,255,.68);
 }
-.hero h1 {
-    margin-bottom: .2rem;
-    font-size: 2.15rem;
+.hero-card img {
+    width: 118px;
+    height: 118px;
+    object-fit: contain;
+    margin-bottom: .35rem;
 }
-.hero p {
-    opacity: .72;
-    margin-top: 0;
+.hero-card h1 {
+    color: var(--purple-main) !important;
+    margin: .1rem 0 .25rem;
+    font-size: 2.05rem;
+    font-weight: 800;
 }
-.section-card {
-    border: 1px solid rgba(127,127,127,.22);
-    border-radius: 16px;
-    padding: 1.1rem 1.15rem;
-    margin-bottom: 1rem;
+.hero-card p {
+    color: #4C1D95 !important;
+    margin: 0;
+    font-size: .98rem;
 }
-div.stButton > button, div.stDownloadButton > button {
-    width: 100%;
-    border-radius: 12px;
-    min-height: 3rem;
+.hero-card .school-name {
+    color: #3B0764 !important;
+    font-size: .88rem;
     font-weight: 700;
+    letter-spacing: .03em;
+    margin-bottom: .2rem;
 }
+
+/* Inputs: white fields with dark text */
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea,
+div[data-baseweb="select"] > div {
+    background: #FFFFFF !important;
+    color: #2E1065 !important;
+    border: 2px solid #D8B4FE !important;
+    border-radius: 11px !important;
+}
+div[data-testid="stTextInput"] input::placeholder,
+div[data-testid="stTextArea"] textarea::placeholder {
+    color: #7C6B8E !important;
+    opacity: 1 !important;
+}
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] div {
+    color: #2E1065 !important;
+}
+
+/* Uploaders */
+div[data-testid="stFileUploader"] {
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 16px;
+    padding: .35rem;
+}
+div[data-testid="stFileUploaderDropzone"] {
+    background: #FFFFFF !important;
+    border: 2px dashed #C084FC !important;
+    border-radius: 14px !important;
+}
+div[data-testid="stFileUploaderDropzone"] * {
+    color: #3B0764 !important;
+}
+
+/* Buttons */
+.stButton > button, .stDownloadButton > button {
+    width: 100%;
+    min-height: 3rem;
+    border-radius: 12px;
+    font-weight: 800;
+    background: #FFFFFF !important;
+    color: #581C87 !important;
+    border: 2px solid #FFFFFF !important;
+    box-shadow: 0 8px 20px rgba(29,0,50,.20);
+}
+.stButton > button:hover, .stDownloadButton > button:hover {
+    background: #F3E8FF !important;
+    color: #3B0764 !important;
+    border-color: #F3E8FF !important;
+}
+
+/* Status chips */
 .status-ok {
-    padding: .6rem .8rem;
+    padding: .62rem .82rem;
     border-radius: 10px;
-    background: rgba(0,180,100,.09);
+    background: #FFFFFF !important;
+    border-left: 5px solid #A855F7 !important;
+    color: #4C1D95 !important;
     margin-bottom: .45rem;
 }
 .status-no {
-    padding: .6rem .8rem;
+    padding: .62rem .82rem;
     border-radius: 10px;
-    background: rgba(220,50,50,.08);
+    background: #FDECEC !important;
+    color: #8B1E2D !important;
     margin-bottom: .45rem;
 }
+
+/* Alerts retain contrast */
+div[data-testid="stAlert"] * { color: inherit !important; }
+
+.developer {
+    text-align: center;
+    color: #F3E8FF !important;
+    font-size: .88rem;
+    margin-top: 1.2rem;
+    font-weight: 600;
+}
 .small {
-    font-size: .9rem;
-    opacity: .72;
+    font-size: .88rem;
+    color: #F3E8FF !important;
+    opacity: .95;
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="hero">
-    <h1> Daily Lesson Plan Generator</h1>
-    <p>Upload your Curriculum Map and Unit Plan, enter the topic, and download a Word lesson plan.</p>
-</div>
-""", unsafe_allow_html=True)
+logo_html = f'<img src="data:image/png;base64,{LOGO_B64}" alt="SMAJ Logo">' if LOGO_B64 else ''
+st.markdown(
+    f"""
+    <div class="hero-card">
+        {logo_html}
+        <div class="school-name">ST. MARY'S ACADEMY OF JASAAN, INC.</div>
+        <h1>Daily Lesson Plan Generator</h1>
+        <p>Upload the Curriculum Map and Unit Plan, enter the lesson details, and download the Word learning plan.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
@@ -552,111 +599,101 @@ def _school_add_label_value(cell, label, value, *, left=.35, italic_value=False)
 
 
 def build_docx(d: Dict[str, Any]) -> bytes:
-    """
-    Populate the FINAL official SMAJ Learning Plan template.
-    English uses the original English headings.
-    Filipino keeps the exact same Word layout and translates the headings.
-    """
+    """Populate the exact SMAJ sample Learning Plan format supplied by the user."""
     if not TEMPLATE_PATH.exists():
-        raise RuntimeError(
-            "The final school Word template is missing. "
-            "Please keep school_learning_plan_template.docx beside app.py."
-        )
+        raise RuntimeError("school_learning_plan_template.docx is missing beside app.py.")
 
     doc = Document(str(TEMPLATE_PATH))
 
-    # Preserve the final template's page/layout structure, while enforcing A4 + Arial 12.
-    for sec in doc.sections:
-        sec.page_width = Mm(210)
-        sec.page_height = Mm(297)
+    # Keep the sample's exact A4 page setup and 0.5-inch margins.
+    sec = doc.sections[0]
+    sec.page_width = Mm(210)
+    sec.page_height = Mm(297)
+    sec.top_margin = Inches(.5)
+    sec.bottom_margin = Inches(.5)
+    sec.left_margin = Inches(.5)
+    sec.right_margin = Inches(.5)
 
     normal = doc.styles["Normal"]
     normal.font.name = "Arial"
     normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial")
     normal.font.size = Pt(12)
 
-    for p in doc.paragraphs:
-        for run in p.runs:
-            _school_set_run_font(run, bold=run.bold, italic=run.italic)
-
     lang = str(d.get("language", "English") or "English").strip().lower()
     fil = lang == "filipino"
 
     L = {
         "plan": "BANGHAY-ARALIN" if fil else "LEARNING PLAN",
-        "subject_level": "Asignatura/Baitang: " if fil else "Subject/Level: ",
-        "unit": "Yunit: " if fil else "Unit: ",
-        "topic": "Paksa: " if fil else "Topic: ",
-        "term": "Markahan/Termino: " if fil else "Quarter/Term: ",
-        "session": "Sesyon: " if fil else "Session: ",
-        "date": "Petsa: " if fil else "Date: ",
-        "section": "Seksyon: " if fil else "Section: ",
-        "competency": "Mga Kasanayang Pampagkatuto:" if fil else "Learning Competency (s):",
-        "transfer": "LAYUNIN SA PAGLILIPAT NG PAGKATUTO" if fil else "TRANSFER GOAL",
-        "understanding": "MAHALAGANG PAG-UNAWA" if fil else "ESSENTIAL UNDERSTANDING",
-        "essential_q": "MAHAHALAGANG TANONG" if fil else "ESSENTIAL QUESTIONS",
-        "prelim": "I. PANIMULANG GAWAIN" if fil else "I. PRELIMINARIES",
-        "review": "Balik-Aral" if fil else "Review",
-        "lots": "LOTS",
-        "hots": "HOTS",
-        "focus": "Pokus" if fil else "Focus",
-        "resources": "Mga Kagamitan" if fil else "Resources",
-        "motivation": "Pagganyak" if fil else "Motivation",
-        "instruction": "Panuto: " if fil else "Instructions: ",
+        "subject": "Asignatura:" if fil else "Subject:",
+        "term": "Termino:" if fil else "Term:",
+        "session": "Sesyon:" if fil else "Session:",
+        "topic": "Paksa:" if fil else "Topic:",
+        "unit": "Yunit:" if fil else "Unit:",
+        "date": "Petsa:" if fil else "Date:",
+        "competencies": "Mga Kasanayang Pampagkatuto:" if fil else "Learning Competencies:",
+        "transfer": "Layunin sa Paglilipat ng Pagkatuto" if fil else "Transfer Goal",
+        "understanding": "Mahalagang Pag-unawa" if fil else "Essential Understanding",
+        "essential_q": "Mahalagang Tanong" if fil else "Essential Question",
+        "prelim": "I.  Panimulang Gawain" if fil else "I.  Preliminaries",
+        "review": "A.  Balik-Aral" if fil else "A.  Review",
+        "focus": "B.  Pokus" if fil else "B.  Focus",
+        "resources": "C.  Mga Kagamitan" if fil else "C.  Resources",
+        "motivation": "D.  Pagganyak" if fil else "D.  Motivation",
+        "instruction": "Panuto: " if fil else "Instruction: ",
         "guide_q": "Gabay na Tanong:" if fil else "Guide Question:",
         "guide_qs": "Mga Gabay na Tanong:" if fil else "Guide Questions:",
-        "prior": "Pagpapagana ng Dating Kaalaman" if fil else "Activating Prior Knowledge",
-        "development": "II. PAGLINANG NG ARALIN" if fil else "II. LESSON DEVELOPMENT",
-        "presentation": "A. Paglalahad ng Konsepto" if fil else "A. Presentation of the Concept",
+        "prior": "E.  Pagpapagana ng Dating Kaalaman" if fil else "E.  Activating Prior Knowledge",
+        "lesson_dev": "II.  Paglinang ng Aralin" if fil else "II.  Lesson Development",
+        "presentation": "A.  Paglalahad ng Konsepto" if fil else "A.  Presentation of Concept",
         "students": "Ang mga mag-aaral ay inaasahang…" if fil else "The students will be able to…",
-        "activities": "B. Mga Gawain" if fil else "B. Activities",
-        "individual": "Indibidwal na Gawain" if fil else "Individual Activity",
-        "group": "Pangkatang Gawain" if fil else "Group Activity",
+        "activities": "B.  Mga Gawain" if fil else "B.  Activities",
         "activity": "Gawain" if fil else "Activity",
+        "individual": "Indibidwal" if fil else "Individual",
+        "group": "Pangkat" if fil else "Group",
         "procedure": "Pamamaraan:" if fil else "Procedure:",
-        "broadening": "C. Pagpapalawak ng Konsepto" if fil else "C. Broadening of Concept",
+        "broadening": "C.  Pagpapalawak ng Konsepto" if fil else "C.  Broadening of Concept",
         "leading": "Panimulang Tanong" if fil else "Leading Question",
         "exploring": "Mapanuring Tanong" if fil else "Exploring Question",
         "connecting": "Tanong na Nag-uugnay" if fil else "Connecting Question",
         "essential": "Mahalagang Tanong" if fil else "Essential Question",
-        "integration": "D. Integrasyon" if fil else "D. Integration",
+        "integration": "D.  Integrasyon" if fil else "D.  Integration",
         "ignacian": "Pangunahing Pagpapahalagang Ignacian" if fil else "Ignacian Core Value",
-        "related": "Kaugnay na Pagpapahalaga" if fil else "Related Value",
+        "related": "Kaugnay na Pagpapahalaga" if fil else "Related Core Value",
         "social": "Oryentasyong Panlipunan" if fil else "Social Orientation",
         "discipline": "Ugnayan sa Ibang Disiplina" if fil else "Lesson Across Discipline",
         "biblical": "Tekstong Biblikal/Pagninilay" if fil else "Biblical Text/Reflection",
-        "evaluation": "III. PAGTATAYA" if fil else "III. EVALUATION/ASSESSMENT",
-        "formative": "PORMATIBONG PAGTATAYA" if fil else "FORMATIVE ASSESSMENT",
-        "summative": "SUMATIBONG PAGTATAYA" if fil else "SUMMATIVE ASSESSMENT",
-        "summary_action": "IV. PAGLALAGOM/PAGKILOS" if fil else "IV. SUMMARY/ACTION",
-        "summary": "Paglalagom" if fil else "Summary",
-        "action": "Pagkilos" if fil else "Action",
-        "assignment": "V. MAKABULUHANG TAKDANG-ARAL/PAGPAPAYAMAN" if fil else "V. PURPOSIVE ASSIGNMENT/ENRICHMENT",
-        "references": "VI. MGA SANGGUNIAN" if fil else "VI. REFERENCES",
+        "evaluation": "III.  Pagtataya" if fil else "III.  Evaluation/Assessment",
+        "formative": "A.  Pormatibong Pagtataya" if fil else "A.  Formative Assessment",
+        "summative": "B.  Sumatibong Pagtataya" if fil else "B.  Summative Assessment",
+        "summary_action": "IV.  Paglalagom/Pagkilos" if fil else "IV.  Summary/Action",
+        "summary": "A.  Paglalagom" if fil else "A.  Summary",
+        "action": "B.  Pagkilos" if fil else "B.  Action",
+        "assignment": "V.  Makabuluhang Takdang-Aralin/Pagpapayaman" if fil else "V.  Purposive Assignment/Enrichment",
+        "assignment_label": "Takdang-Aralin: " if fil else "Assignment: ",
+        "references": "VI.  Mga Sanggunian" if fil else "VI.  References",
         "prepared": "Inihanda ni:" if fil else "Prepared by:",
-        "teacher": "Guro" if fil else "Teacher",
-        "submitted": "Petsa ng Pagsumite:_________________" if fil else "Date Submitted:_________________",
         "checked": "Sinuri ni:" if fil else "Checked by:",
         "noted": "Pinagtibay ni:" if fil else "Noted by:",
+        "teacher": "Guro" if fil else "Teacher",
         "status": "Kalagayan ng Pagpapatupad" if fil else "Status of Implementation",
-        "implemented": "___ Naipatupad     ___ Bahagyang Naipatupad" if fil else "___ Implemented   ___ Partially Implemented",
-        "not_implemented": "___ Hindi Naipatupad" if fil else "___ Not Implemented",
+        "implemented": "___Naipatupad         ___ Bahagyang Naipatupad" if fil else "___Implemented         ___ Partially Implemented",
+        "not_impl": "___Hindi Naipatupad" if fil else "___Not Implemented",
         "remarks": "Mga Tala:" if fil else "Remarks:",
-        "observed": "Inobserbahan ni:_________________________" if fil else "Observed by:_________________________",
-        "date_observed": "Petsa ng Obserbasyon:____________________" if fil else "Date Observed:_______________________",
+        "observed": "Inobserbahan ni: _________________________" if fil else "Observed by: _________________________",
+        "date_observed": "Petsa ng Obserbasyon: ____________________" if fil else "Date Observed: _______________________",
         "modifications": "Mga Pagbabago" if fil else "Modifications",
     }
 
     def clear(cell):
         _school_clear_cell(cell)
 
-    def add(cell, text="", bold=False, italic=False, left=0, align=WD_ALIGN_PARAGRAPH.LEFT):
+    def add(cell, text="", *, bold=False, italic=False, left=0, align=WD_ALIGN_PARAGRAPH.JUSTIFY):
         return _school_add_p(cell, text, bold=bold, italic=italic, left=left, align=align)
 
-    def add_lv(cell, label, value, left=0):
-        return _school_add_label_value(cell, label, value, left=left)
+    def add_lv(cell, label, value, *, left=.35, italic_value=False):
+        return _school_add_label_value(cell, label, value, left=left, italic_value=italic_value)
 
-    # Translate only the title line; preserve the official school header/logo.
+    # Preserve school logo and header. Translate only the plan title when Filipino is selected.
     for p in doc.paragraphs:
         if p.text.strip().upper() == "LEARNING PLAN":
             for r in p.runs:
@@ -666,250 +703,197 @@ def build_docx(d: Dict[str, Any]) -> bytes:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             break
 
-    # ---------------- FINAL TOP TABLE: exact 3 x 3 layout ----------------
+    # ---------------- EXACT 3 x 6 TOP INFORMATION TABLE ----------------
     meta = doc.tables[0]
-
-    grade_sections_text = str(d.get("grade_level", "") or "").strip()
-    grade_match = re.search(r"(?i)grade\s*(\d+)", grade_sections_text)
+    grade_section = str(d.get("grade_level", "") or "").strip()
+    grade_match = re.search(r"(?:Grade\s*)?(\d+)", grade_section, flags=re.I)
     level_text = grade_match.group(1) if grade_match else ""
-    subject_level_text = f'{d.get("subject","")} {level_text}'.strip()
+    subject_text = str(d.get("subject", "") or "").strip()
+    subject_level = f"{subject_text} {level_text}".strip()
 
-    vals = [
-        (0, 0, L["subject_level"], subject_level_text),
-        (0, 1, L["unit"], d.get("unit","")),
-        (0, 2, L["topic"], d.get("topic","")),
-        (1, 0, L["term"], d.get("term","")),
-        (1, 1, L["session"], d.get("session","")),
-    ]
-    for ri, ci, label, value in vals:
-        c = meta.rows[ri].cells[ci]
-        clear(c)
-        add_lv(c, label, value, left=0)
+    row0 = [(L["subject"], subject_level), (L["term"], d.get("term", "")), (L["session"], d.get("session", ""))]
+    for i, (label, value) in enumerate(row0):
+        lc = meta.rows[0].cells[i*2]; vc = meta.rows[0].cells[i*2+1]
+        clear(lc); clear(vc)
+        add(lc, label, bold=True)
+        add(vc, value)
 
-    c = meta.rows[1].cells[2]
-    clear(c)
-    add_lv(c, L["date"], d.get("date",""), left=0)
-    add_lv(c, L["section"], d.get("grade_level",""), left=0)
+    for i, (label, value) in enumerate([(L["topic"], d.get("topic", "")), (L["unit"], d.get("unit", ""))]):
+        lc = meta.rows[1].cells[i*2]; vc = meta.rows[1].cells[i*2+1]
+        clear(lc); clear(vc)
+        add(lc, label, bold=True)
+        add(vc, value, align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    c = meta.rows[2].cells[0]
-    clear(c)
-    add(c, L["competency"], bold=True)
-    for i, comp in enumerate(d.get("learning_competencies",[]) or [], 1):
+    date_cell = meta.rows[1].cells[4]
+    clear(date_cell)
+    add(date_cell, L["date"], bold=True)
+    date_value = str(d.get("date", "") or "").strip()
+    if date_value:
+        for line in date_value.splitlines():
+            if line.strip(): add(date_cell, f"•  {line.strip()}", left=.25, align=WD_ALIGN_PARAGRAPH.LEFT)
+
+    comp_cell = meta.rows[2].cells[0]
+    clear(comp_cell)
+    add(comp_cell, L["competencies"], bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
+    for i, comp in enumerate(d.get("learning_competencies", []) or []):
         if str(comp).strip():
-            add(c, f"{i}. {str(comp).strip()}", left=.05)
+            prefix = chr(97+i) if i < 26 else str(i+1)
+            add(comp_cell, f"{prefix}.  {str(comp).strip()}", left=.25, align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    # ---------------- FINAL MAIN TABLE: exact 13-row layout ----------------
+    # ---------------- EXACT 12-ROW MAIN TABLE ----------------
     table = doc.tables[1]
-
-    for ri, heading, key in [
-        (0, L["transfer"], "transfer_goal"),
-        (1, L["understanding"], "essential_understanding"),
-        (2, L["essential_q"], "essential_question"),
-    ]:
-        c = table.rows[ri].cells[0]
-        clear(c)
-        add(c, heading, bold=True)
+    for ri, heading, key in [(0,L["transfer"],"transfer_goal"),(1,L["understanding"],"essential_understanding"),(2,L["essential_q"],"essential_question")]:
+        c=table.rows[ri].cells[0]; clear(c)
+        add(c, heading, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
         add(c, d.get(key,""), align=WD_ALIGN_PARAGRAPH.JUSTIFY)
 
-    prelim = d.get("preliminaries",{}) or {}
-    c = table.rows[3].cells[0]
-    clear(c)
-    add(c, L["prelim"], bold=True)
-    add(c, L["review"], bold=True)
-    review = prelim.get("review",{}) or {}
+    # I. Preliminaries
+    prelim=d.get("preliminaries",{}) or {}
+    c=table.rows[3].cells[0]; clear(c)
+    add(c,L["prelim"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["review"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    review=prelim.get("review",{}) or {}
     if isinstance(review,dict):
-        if str(review.get("lots_question","") or "").strip():
-            add_lv(c, f'{L["lots"]}: ', review.get("lots_question",""))
-        if str(review.get("hots_question","") or "").strip():
-            add_lv(c, f'{L["hots"]}: ', review.get("hots_question",""))
-    elif str(review).strip():
-        add(c, str(review).strip())
+        lq=str(review.get("lots_question","") or "").strip(); hq=str(review.get("hots_question","") or "").strip()
+        if lq: add(c,lq,left=.55)
+        if hq: add(c,hq,left=.55)
+    elif str(review).strip(): add(c,str(review).strip(),left=.55)
 
-    add(c, L["focus"], bold=True)
-    add(c, d.get("topic", prelim.get("focus","")))
+    add(c,L["focus"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,d.get("topic", prelim.get("focus","")),left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["resources"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    for resource in prelim.get("resources",[]) or []:
+        if str(resource).strip(): add(c,f"•  {str(resource).strip()}",left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    add(c, L["resources"], bold=True)
-    for r in prelim.get("resources",[]) or []:
-        if str(r).strip(): add(c, f"o  {str(r).strip()}", left=.15)
+    add(c,L["motivation"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    mot=prelim.get("motivation",{}) or {}
+    if mot.get("title"): add(c,mot.get("title",""),bold=True,italic=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    if mot.get("instruction"): add_lv(c,L["instruction"],mot.get("instruction",""),left=.55)
+    if mot.get("content"): add(c,mot.get("content",""),left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    mqs=mot.get("guide_questions",[]) or []
+    if mqs:
+        add(c,L["guide_q"] if len(mqs)==1 else L["guide_qs"],bold=True,italic=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+        for i,q in enumerate(mqs,1): add(c,("" if len(mqs)==1 else f"{i}.) ")+str(q),left=.55)
 
-    add(c, L["motivation"], bold=True)
-    mot = prelim.get("motivation",{}) or {}
-    if mot.get("title"): add(c, mot.get("title",""), bold=True)
-    if mot.get("instruction"): add_lv(c, L["instruction"], mot.get("instruction",""))
-    if mot.get("content"): add(c, mot.get("content",""))
-    qs = mot.get("guide_questions",[]) or []
-    if qs:
-        add(c, L["guide_q"] if len(qs)==1 else L["guide_qs"], bold=True)
-        for q in qs: add(c, f"o  {q}", left=.15)
-
-    add(c, L["prior"], bold=True)
-    prior = prelim.get("activating_prior_knowledge","")
+    add(c,L["prior"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    prior=prelim.get("activating_prior_knowledge","")
     if isinstance(prior,list):
         for q in prior:
-            if str(q).strip(): add(c, f"o  {q}", left=.15)
-    elif str(prior).strip():
-        add(c, str(prior).strip())
+            if str(q).strip(): add(c,str(q).strip(),left=.55)
+    elif str(prior).strip(): add(c,str(prior).strip(),left=.55)
 
-    lesson = d.get("lesson_development",{}) or {}
-    c = table.rows[4].cells[0]
-    clear(c)
-    add(c, L["development"], bold=True)
-    add(c, L["presentation"], bold=True)
-    add(c, L["students"], italic=True)
-    for i,obj in enumerate(lesson.get("presentation_of_concept",[]) or [],1):
-        if str(obj).strip(): add(c, f"{i}. {str(obj).strip()}")
+    # II. Lesson Development
+    lesson=d.get("lesson_development",{}) or {}
+    c=table.rows[4].cells[0]; clear(c)
+    add(c,L["lesson_dev"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["presentation"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["students"],left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    for i,obj in enumerate(lesson.get("presentation_of_concept",[]) or []):
+        if str(obj).strip():
+            prefix=chr(97+i) if i<26 else str(i+1)
+            add(c,f"{prefix}.  {str(obj).strip()}",left=.55)
 
-    add(c, L["activities"], bold=True)
-    type_counts = {}
+    add(c,L["activities"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for act in lesson.get("activities",[]) or []:
-        typ = str(act.get("type","") or "").strip()
-        typ_low = typ.lower()
-        if "group" in typ_low or "pangkat" in typ_low:
-            type_label = L["group"]
-        elif "individual" in typ_low or "indibid" in typ_low:
-            type_label = L["individual"]
-        else:
-            type_label = typ or L["activity"]
-        type_counts[type_label] = type_counts.get(type_label,0)+1
-        add(c, type_label, bold=True)
-        title = str(act.get("title","") or "").strip()
-        if title: add(c, f'{L["activity"]} {type_counts[type_label]}: {title}', bold=True)
-        if act.get("instruction"): add_lv(c, L["instruction"], act.get("instruction",""))
-        steps = act.get("steps",[]) or []
+        typ=str(act.get("type","") or "").strip().lower()
+        if "group" in typ or "pangkat" in typ: type_label=L["group"]
+        elif "individual" in typ or "indibid" in typ: type_label=L["individual"]
+        else: type_label=str(act.get("type","") or "").strip() or L["activity"]
+        title=str(act.get("title","") or "").strip()
+        add(c,f"{type_label} {L['activity']}: {title}" if title else f"{type_label} {L['activity']}",bold=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+        if act.get("instruction"): add_lv(c,L["instruction"],act.get("instruction",""),left=.55)
+        steps=act.get("steps",[]) or []
         if steps:
-            add(c, L["procedure"], bold=True)
-            for step in steps: add(c, f"o  {step}", left=.15)
-        aqs = act.get("guide_questions",[]) or []
+            add(c,L["procedure"],bold=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+            for i,step in enumerate(steps,1): add(c,f"{i}.) {step}",left=.55)
+        aqs=act.get("guide_questions",[]) or []
         if aqs:
-            add(c, L["guide_q"] if len(aqs)==1 else L["guide_qs"], bold=True)
-            for q in aqs: add(c, f"o  {q}", left=.15)
+            add(c,L["guide_q"] if len(aqs)==1 else L["guide_qs"],bold=True,italic=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+            for i,q in enumerate(aqs,1): add(c,f"{i}.) {q}",left=.55)
 
-    add(c, L["broadening"], bold=True)
-    broad = lesson.get("broadening_of_concept",{}) or {}
-    for label,key in [
-        (L["leading"],"leading_question"),
-        (L["exploring"],"exploring_question"),
-        (L["connecting"],"connecting_question"),
-        (L["essential"],"essential_question"),
-    ]:
-        if broad.get(key): add_lv(c, f"{label}: ", broad.get(key,""))
+    add(c,L["broadening"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    broad=lesson.get("broadening_of_concept",{}) or {}
+    for label,key in [(L["leading"],"leading_question"),(L["exploring"],"exploring_question"),(L["connecting"],"connecting_question"),(L["essential"],"essential_question")]:
+        if broad.get(key):
+            add(c,f"•  {label}",bold=True,left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+            add(c,broad.get(key,""),left=.55)
 
-    c = table.rows[5].cells[0]
-    clear(c)
-    add(c, L["integration"], bold=True)
-    integ = lesson.get("integration",{}) or {}
-    for label,key,detail in [
-        (L["ignacian"],"ignacian_core_value","connection"),
-        (L["related"],"related_core_value","connection"),
-        (L["social"],"social_orientation","question_or_connection"),
-        (L["discipline"],"lesson_across_discipline","question_or_connection"),
-    ]:
-        item = integ.get(key,{}) or {}
+    add(c,L["integration"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+    integ=lesson.get("integration",{}) or {}
+    for label,key,detail in [(L["ignacian"],"ignacian_core_value","connection"),(L["related"],"related_core_value","connection"),(L["social"],"social_orientation","question_or_connection"),(L["discipline"],"lesson_across_discipline","question_or_connection")]:
+        item=integ.get(key,{}) or {}
         if item.get("name"):
-            add_lv(c, f"{label}: ", item.get("name",""))
-        if item.get(detail): add(c, item.get(detail,""))
+            add_lv(c,f"•  {label}: ",item.get("name",""),left=.55)
+            if item.get(detail): add(c,item.get(detail,""),left=.55)
+    bib=integ.get("biblical_text_reflection",{}) or {}
+    if bib.get("reference"): add_lv(c,f"•  {L['biblical']}: ",bib.get("reference",""),left=.55)
+    if bib.get("text"): add(c,bib.get("text",""),left=.55)
+    if bib.get("reflection"): add(c,bib.get("reflection",""),left=.55)
 
-    bib = integ.get("biblical_text_reflection",{}) or {}
-    if bib.get("reference"): add_lv(c, f'{L["biblical"]}: ', bib.get("reference",""))
-    if bib.get("text"): add(c, bib.get("text",""), italic=True)
-    if bib.get("reflection"): add(c, bib.get("reflection",""))
-
-    ev = d.get("evaluation_assessment",{}) or {}
-    c = table.rows[6].cells[0]
-    clear(c)
-    add(c, L["evaluation"], bold=True)
-    add(c, L["formative"], bold=True)
+    # III. Evaluation/Assessment
+    ev=d.get("evaluation_assessment",{}) or {}
+    c=table.rows[5].cells[0]; clear(c)
+    add(c,L["evaluation"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["formative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("formative",[]) or []:
-        name = str(item.get("name","") or "").strip()
-        ins = str(item.get("instruction","") or "").strip()
-        if name or ins: add(c, "o  " + (name + (": " if name and ins else "") + ins))
-    add(c, L["summative"], bold=True)
+        name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
+        if name or ins: add(c,"•  "+name+((": "+ins) if name and ins else ins),left=.55)
+    add(c,L["summative"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
     for item in ev.get("summative",[]) or []:
-        name = str(item.get("name","") or "").strip()
-        ins = str(item.get("instruction","") or "").strip()
-        if name or ins: add(c, "o  " + (name + (": " if name and ins else "") + ins))
+        name=str(item.get("name","") or "").strip(); ins=str(item.get("instruction","") or "").strip()
+        if name or ins: add(c,"•  "+name+((": "+ins) if name and ins else ins),left=.55)
 
-    sa = d.get("summary_action",{}) or {}
-    c = table.rows[7].cells[0]
-    clear(c)
-    add(c, L["summary_action"], bold=True)
-    add(c, L["summary"], bold=True)
-    add(c, sa.get("summary",""))
-    add(c, L["action"], bold=True)
-    add(c, sa.get("action",""))
+    # IV. Summary/Action
+    sa=d.get("summary_action",{}) or {}
+    c=table.rows[6].cells[0]; clear(c)
+    add(c,L["summary_action"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,L["summary"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT); add(c,sa.get("summary",""),left=.55)
+    add(c,L["action"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT); add(c,sa.get("action",""),left=.55)
 
-    ass = d.get("assignment_enrichment",{}) or {}
-    c = table.rows[8].cells[0]
-    clear(c)
-    add(c, L["assignment"], bold=True)
-    if ass.get("assignment"): add(c, ass.get("assignment",""))
-    if ass.get("instructions"): add_lv(c, L["instruction"], ass.get("instructions",""))
-    for q in ass.get("guide_questions",[]) or []:
-        add(c, f"o  {q}", left=.15)
+    # V. Assignment/Enrichment
+    ass=d.get("assignment_enrichment",{}) or {}
+    c=table.rows[7].cells[0]; clear(c)
+    add(c,L["assignment"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
+    if ass.get("assignment"): add_lv(c,L["assignment_label"],ass.get("assignment",""),left=.30)
+    if ass.get("instructions"): add_lv(c,L["instruction"],ass.get("instructions",""),left=.30)
+    qs=ass.get("guide_questions",[]) or []
+    if qs:
+        add(c,L["guide_q"] if len(qs)==1 else L["guide_qs"],bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
+        for i,q in enumerate(qs,1): add(c,f"{i}.) {q}",left=.55)
 
-    c = table.rows[9].cells[0]
-    clear(c)
-    add(c, L["references"], bold=True)
+    # VI. References
+    c=table.rows[8].cells[0]; clear(c)
+    add(c,L["references"],bold=True,left=.02,align=WD_ALIGN_PARAGRAPH.LEFT)
     for ref in d.get("references",[]) or []:
-        if str(ref).strip(): add(c, str(ref).strip())
+        if str(ref).strip(): add(c,str(ref).strip(),left=.30)
 
-    # Signatures: preserve exact two-column / noted / implementation layout.
-    left = table.rows[10].cells[0]
-    right = table.rows[10].cells[1]
-    clear(left); clear(right)
-    add(left, L["prepared"], bold=True)
-    add(left, "")
-    add(left, d.get("prepared_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-    prepared_title = str(d.get("prepared_by_title","") or "").strip() or L["teacher"]
-    add(left, prepared_title, align=WD_ALIGN_PARAGRAPH.CENTER)
-    add(left, "")
-    add(left, L["submitted"])
+    # Signatures: exact sample columns.
+    prepared_title=str(d.get("prepared_by_title","") or "").strip()
+    if not prepared_title:
+        prepared_title=f"{subject_text} {L['teacher']}".strip() if subject_text else L["teacher"]
+    for cell,label,name,title in [
+        (table.rows[9].cells[0],L["prepared"],d.get("prepared_by",""),prepared_title),
+        (table.rows[9].cells[2],L["checked"],d.get("checked_by",""),d.get("checked_by_title","")),
+    ]:
+        clear(cell); add(cell,label,bold=True,align=WD_ALIGN_PARAGRAPH.LEFT); add(cell,"",align=WD_ALIGN_PARAGRAPH.LEFT)
+        add(cell,name,bold=True,align=WD_ALIGN_PARAGRAPH.CENTER); add(cell,title,align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    add(right, L["checked"], bold=True)
-    add(right, "")
-    add(right, d.get("checked_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-    add(right, d.get("checked_by_title",""), align=WD_ALIGN_PARAGRAPH.CENTER)
+    c=table.rows[10].cells[1]; clear(c)
+    add(c,L["noted"],bold=True,align=WD_ALIGN_PARAGRAPH.LEFT); add(c,"",align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c,d.get("noted_by",""),bold=True,align=WD_ALIGN_PARAGRAPH.CENTER); add(c,d.get("noted_by_title",""),align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    noted = table.rows[11].cells[0]
-    clear(noted)
-    add(noted, L["noted"], bold=True)
-    add(noted, "")
-    add(noted, d.get("noted_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-    add(noted, d.get("noted_by_title",""), align=WD_ALIGN_PARAGRAPH.CENTER)
+    status=table.rows[11].cells[0]; mods=table.rows[11].cells[2]
+    clear(status); add(status,L["status"],bold=True,align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(status,L["implemented"],left=.05,align=WD_ALIGN_PARAGRAPH.LEFT); add(status,L["not_impl"],left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(status,L["remarks"],bold=True,left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(status,"_____________________________________",left=.05,align=WD_ALIGN_PARAGRAPH.LEFT); add(status,"_____________________________________",left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(status,"",align=WD_ALIGN_PARAGRAPH.LEFT); add(status,L["observed"],left=.05,align=WD_ALIGN_PARAGRAPH.LEFT); add(status,"",align=WD_ALIGN_PARAGRAPH.LEFT); add(status,L["date_observed"],left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    clear(mods); add(mods,L["modifications"],bold=True,align=WD_ALIGN_PARAGRAPH.CENTER)
+    for _ in range(3): add(mods,"_____________________________________",left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(mods,"",align=WD_ALIGN_PARAGRAPH.LEFT); add(mods,L["remarks"],bold=True,left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
+    for _ in range(3): add(mods,"_____________________________________",left=.05,align=WD_ALIGN_PARAGRAPH.LEFT)
 
-    status = table.rows[12].cells[0]
-    mods = table.rows[12].cells[1]
-    clear(status); clear(mods)
-    add(status, L["status"], bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-    add(status, L["implemented"])
-    add(status, L["not_implemented"])
-    add(status, L["remarks"], bold=True)
-    add(status, "____________________________________")
-    add(status, L["observed"])
-    add(status, L["date_observed"])
-
-    add(mods, L["modifications"], bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-    add(mods, "")
-    add(mods, "__________________________________________________________________________________________")
-    add(mods, L["remarks"], bold=True)
-    add(mods, "")
-    add(mods, "")
-
-    # Remove the unused blank body paragraphs that follow the final table in the supplied
-    # template. They otherwise create an extra blank page after shorter generated plans.
-    body = doc._element.body
-    last_table_seen = False
-    for child in list(body):
-        tag = child.tag.split("}")[-1]
-        if tag == "tbl":
-            last_table_seen = True
-            continue
-        if last_table_seen and tag == "p":
-            text_nodes = child.xpath(".//w:t/text()")
-            if not "".join(text_nodes).strip():
-                body.remove(child)
-
-    # Enforce Arial 12 for all generated/existing text without changing the template structure.
+    # Ensure all generated/existing text follows the sample's Arial 12 format.
     for table_obj in doc.tables:
         for row in table_obj.rows:
             for cell in row.cells:
@@ -917,9 +901,7 @@ def build_docx(d: Dict[str, Any]) -> bytes:
                     for run in p.runs:
                         _school_set_run_font(run, bold=run.bold, italic=run.italic)
 
-    out = BytesIO()
-    doc.save(out)
-    return out.getvalue()
+    out=io.BytesIO(); doc.save(out); return out.getvalue()
 
 # ============================================================
 # USER INTERFACE
@@ -1078,7 +1060,8 @@ if "generated_docx" in st.session_state:
     )
 
 st.markdown(
-    '<p class="small" style="text-align:center;margin-top:1.4rem;">'
+    '<p class="developer">Developer: Aurie Joy Ellevera</p>'
+    '<p class="small" style="text-align:center;margin-top:.3rem;">'
     'Your uploaded files are used to generate the requested lesson plan during this session.'
     '</p>',
     unsafe_allow_html=True
