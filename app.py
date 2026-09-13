@@ -13,6 +13,7 @@ from docx.shared import Inches, Pt, Mm
 from docx.oxml.ns import qn
 from google import genai
 from google.genai import types
+from io import BytesIO
 
 
 TEMPLATE_PATH = Path(__file__).with_name("school_learning_plan_template.docx")
