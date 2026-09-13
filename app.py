@@ -534,549 +534,373 @@ def _school_add_label_value(cell, label, value, *, left=.35, italic_value=False)
 
 def build_docx(d: Dict[str, Any]) -> bytes:
     """
-    Build the learning plan using the school's actual Word layout.
-    A4, Arial 12, same bordered sections, signature boxes, logo, and implementation area.
+    Populate the FINAL official SMAJ Learning Plan template.
+    English uses the original English headings.
+    Filipino keeps the exact same Word layout and translates the headings.
     """
     if not TEMPLATE_PATH.exists():
         raise RuntimeError(
-            "The school Word template file is missing. "
-            "Please upload school_learning_plan_template.docx to the GitHub repository."
+            "The final school Word template is missing. "
+            "Please keep school_learning_plan_template.docx beside app.py."
         )
 
     doc = Document(str(TEMPLATE_PATH))
 
-    # Required school page setup.
-    sec = doc.sections[0]
-    sec.page_width = Mm(210)
-    sec.page_height = Mm(297)
-    sec.top_margin = Inches(.5)
-    sec.bottom_margin = Inches(.5)
-    sec.left_margin = Inches(.5)
-    sec.right_margin = Inches(.5)
+    # Preserve the final template's page/layout structure, while enforcing A4 + Arial 12.
+    for sec in doc.sections:
+        sec.page_width = Mm(210)
+        sec.page_height = Mm(297)
 
     normal = doc.styles["Normal"]
     normal.font.name = "Arial"
     normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial")
     normal.font.size = Pt(12)
 
-    # Keep the school's heading/logo area from the template.
-    # Make sure all existing heading text remains Arial 12.
     for p in doc.paragraphs:
         for run in p.runs:
             _school_set_run_font(run, bold=run.bold, italic=run.italic)
 
-    # --------------------------------------------------------
-    # TOP INFORMATION TABLE
-    # --------------------------------------------------------
+    lang = str(d.get("language", "English") or "English").strip().lower()
+    fil = lang == "filipino"
+
+    L = {
+        "plan": "BANGHAY-ARALIN" if fil else "LEARNING PLAN",
+        "subject_level": "Asignatura/Baitang: " if fil else "Subject/Level: ",
+        "unit": "Yunit: " if fil else "Unit: ",
+        "topic": "Paksa: " if fil else "Topic: ",
+        "term": "Markahan/Termino: " if fil else "Quarter/Term: ",
+        "session": "Sesyon: " if fil else "Session: ",
+        "date": "Petsa: " if fil else "Date: ",
+        "section": "Seksyon: " if fil else "Section: ",
+        "competency": "Mga Kasanayang Pampagkatuto:" if fil else "Learning Competency (s):",
+        "transfer": "LAYUNIN SA PAGLILIPAT NG PAGKATUTO" if fil else "TRANSFER GOAL",
+        "understanding": "MAHALAGANG PAG-UNAWA" if fil else "ESSENTIAL UNDERSTANDING",
+        "essential_q": "MAHAHALAGANG TANONG" if fil else "ESSENTIAL QUESTIONS",
+        "prelim": "I. PANIMULANG GAWAIN" if fil else "I. PRELIMINARIES",
+        "review": "Balik-Aral" if fil else "Review",
+        "lots": "LOTS",
+        "hots": "HOTS",
+        "focus": "Pokus" if fil else "Focus",
+        "resources": "Mga Kagamitan" if fil else "Resources",
+        "motivation": "Pagganyak" if fil else "Motivation",
+        "instruction": "Panuto: " if fil else "Instructions: ",
+        "guide_q": "Gabay na Tanong:" if fil else "Guide Question:",
+        "guide_qs": "Mga Gabay na Tanong:" if fil else "Guide Questions:",
+        "prior": "Pagpapagana ng Dating Kaalaman" if fil else "Activating Prior Knowledge",
+        "development": "II. PAGLINANG NG ARALIN" if fil else "II. LESSON DEVELOPMENT",
+        "presentation": "A. Paglalahad ng Konsepto" if fil else "A. Presentation of the Concept",
+        "students": "Ang mga mag-aaral ay inaasahang…" if fil else "The students will be able to…",
+        "activities": "B. Mga Gawain" if fil else "B. Activities",
+        "individual": "Indibidwal na Gawain" if fil else "Individual Activity",
+        "group": "Pangkatang Gawain" if fil else "Group Activity",
+        "activity": "Gawain" if fil else "Activity",
+        "procedure": "Pamamaraan:" if fil else "Procedure:",
+        "broadening": "C. Pagpapalawak ng Konsepto" if fil else "C. Broadening of Concept",
+        "leading": "Panimulang Tanong" if fil else "Leading Question",
+        "exploring": "Mapanuring Tanong" if fil else "Exploring Question",
+        "connecting": "Tanong na Nag-uugnay" if fil else "Connecting Question",
+        "essential": "Mahalagang Tanong" if fil else "Essential Question",
+        "integration": "D. Integrasyon" if fil else "D. Integration",
+        "ignacian": "Pangunahing Pagpapahalagang Ignacian" if fil else "Ignacian Core Value",
+        "related": "Kaugnay na Pagpapahalaga" if fil else "Related Value",
+        "social": "Oryentasyong Panlipunan" if fil else "Social Orientation",
+        "discipline": "Ugnayan sa Ibang Disiplina" if fil else "Lesson Across Discipline",
+        "biblical": "Tekstong Biblikal/Pagninilay" if fil else "Biblical Text/Reflection",
+        "evaluation": "III. PAGTATAYA" if fil else "III. EVALUATION/ASSESSMENT",
+        "formative": "PORMATIBONG PAGTATAYA" if fil else "FORMATIVE ASSESSMENT",
+        "summative": "SUMATIBONG PAGTATAYA" if fil else "SUMMATIVE ASSESSMENT",
+        "summary_action": "IV. PAGLALAGOM/PAGKILOS" if fil else "IV. SUMMARY/ACTION",
+        "summary": "Paglalagom" if fil else "Summary",
+        "action": "Pagkilos" if fil else "Action",
+        "assignment": "V. MAKABULUHANG TAKDANG-ARAL/PAGPAPAYAMAN" if fil else "V. PURPOSIVE ASSIGNMENT/ENRICHMENT",
+        "references": "VI. MGA SANGGUNIAN" if fil else "VI. REFERENCES",
+        "prepared": "Inihanda ni:" if fil else "Prepared by:",
+        "teacher": "Guro" if fil else "Teacher",
+        "submitted": "Petsa ng Pagsumite:_________________" if fil else "Date Submitted:_________________",
+        "checked": "Sinuri ni:" if fil else "Checked by:",
+        "noted": "Pinagtibay ni:" if fil else "Noted by:",
+        "status": "Kalagayan ng Pagpapatupad" if fil else "Status of Implementation",
+        "implemented": "___ Naipatupad     ___ Bahagyang Naipatupad" if fil else "___ Implemented   ___ Partially Implemented",
+        "not_implemented": "___ Hindi Naipatupad" if fil else "___ Not Implemented",
+        "remarks": "Mga Tala:" if fil else "Remarks:",
+        "observed": "Inobserbahan ni:_________________________" if fil else "Observed by:_________________________",
+        "date_observed": "Petsa ng Obserbasyon:____________________" if fil else "Date Observed:_______________________",
+        "modifications": "Mga Pagbabago" if fil else "Modifications",
+    }
+
+    def clear(cell):
+        _school_clear_cell(cell)
+
+    def add(cell, text="", bold=False, italic=False, left=0, align=WD_ALIGN_PARAGRAPH.LEFT):
+        return _school_add_p(cell, text, bold=bold, italic=italic, left=left, align=align)
+
+    def add_lv(cell, label, value, left=0):
+        return _school_add_label_value(cell, label, value, left=left)
+
+    # Translate only the title line; preserve the official school header/logo.
+    for p in doc.paragraphs:
+        if p.text.strip().upper() == "LEARNING PLAN":
+            for r in p.runs:
+                r.text = ""
+            r = p.add_run(L["plan"])
+            _school_set_run_font(r, bold=True)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            break
+
+    # ---------------- FINAL TOP TABLE: exact 3 x 3 layout ----------------
     meta = doc.tables[0]
 
-    row0 = [
-        ("Subject:", d.get("subject", "")),
-        ("Term:", d.get("term", "")),
-        ("Session:", d.get("session", "")),
+    grade_sections_text = str(d.get("grade_level", "") or "").strip()
+    grade_match = re.search(r"(?i)grade\s*(\d+)", grade_sections_text)
+    level_text = grade_match.group(1) if grade_match else ""
+    subject_level_text = f'{d.get("subject","")} {level_text}'.strip()
+
+    vals = [
+        (0, 0, L["subject_level"], subject_level_text),
+        (0, 1, L["unit"], d.get("unit","")),
+        (0, 2, L["topic"], d.get("topic","")),
+        (1, 0, L["term"], d.get("term","")),
+        (1, 1, L["session"], d.get("session","")),
     ]
-    for i, (label, value) in enumerate(row0):
-        label_cell = meta.rows[0].cells[i * 2]
-        value_cell = meta.rows[0].cells[i * 2 + 1]
-        _school_clear_cell(label_cell)
-        _school_clear_cell(value_cell)
-        _school_add_p(label_cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-        _school_add_p(value_cell, value, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+    for ri, ci, label, value in vals:
+        c = meta.rows[ri].cells[ci]
+        clear(c)
+        add_lv(c, label, value, left=0)
 
-    row1 = [
-        ("Topic:", d.get("topic", "")),
-        ("Unit:", d.get("unit", "")),
-    ]
-    for i, (label, value) in enumerate(row1):
-        label_cell = meta.rows[1].cells[i * 2]
-        value_cell = meta.rows[1].cells[i * 2 + 1]
-        _school_clear_cell(label_cell)
-        _school_clear_cell(value_cell)
-        _school_add_p(label_cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-        _school_add_p(value_cell, value, align=WD_ALIGN_PARAGRAPH.LEFT)
+    c = meta.rows[1].cells[2]
+    clear(c)
+    add_lv(c, L["date"], d.get("date",""), left=0)
+    add_lv(c, L["section"], d.get("grade_level",""), left=0)
 
-    date_cell = meta.rows[1].cells[4]
-    _school_clear_cell(date_cell)
-    _school_add_p(date_cell, "Date:", bold=True, align=WD_ALIGN_PARAGRAPH.JUSTIFY)
-    date_value = str(d.get("date", "") or "").strip()
-    if date_value:
-        for line_value in date_value.splitlines():
-            if line_value.strip():
-                _school_add_p(
-                    date_cell,
-                    line_value.strip(),
-                    left=.25,
-                    align=WD_ALIGN_PARAGRAPH.LEFT,
-                )
+    c = meta.rows[2].cells[0]
+    clear(c)
+    add(c, L["competency"], bold=True)
+    for i, comp in enumerate(d.get("learning_competencies",[]) or [], 1):
+        if str(comp).strip():
+            add(c, f"{i}. {str(comp).strip()}", left=.05)
 
-    competency_cell = meta.rows[2].cells[0]
-    _school_clear_cell(competency_cell)
-    _school_add_p(
-        competency_cell,
-        "Learning Competencies:",
-        bold=True,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    competencies = d.get("learning_competencies", []) or []
-    for i, competency in enumerate(competencies):
-        if str(competency).strip():
-            _school_add_p(
-                competency_cell,
-                f"{chr(97 + i)}.  {str(competency).strip()}",
-                left=.25,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-            )
-
-    # --------------------------------------------------------
-    # MAIN SCHOOL FORMAT TABLE
-    # --------------------------------------------------------
+    # ---------------- FINAL MAIN TABLE: exact 13-row layout ----------------
     table = doc.tables[1]
 
-    # Transfer Goal / Essential Understanding / Essential Question
-    fixed_sections = [
-        ("Transfer Goal", "transfer_goal"),
-        ("Essential Understanding", "essential_understanding"),
-        ("Essential Question", "essential_question"),
-    ]
-    for row_index, (heading, key) in enumerate(fixed_sections):
-        cell = table.rows[row_index].cells[0]
-        _school_clear_cell(cell)
-        _school_add_p(
-            cell,
-            heading,
-            bold=True,
-            align=WD_ALIGN_PARAGRAPH.CENTER,
-        )
-        _school_add_p(
-            cell,
-            d.get(key, ""),
-            align=WD_ALIGN_PARAGRAPH.JUSTIFY,
-        )
+    for ri, heading, key in [
+        (0, L["transfer"], "transfer_goal"),
+        (1, L["understanding"], "essential_understanding"),
+        (2, L["essential_q"], "essential_question"),
+    ]:
+        c = table.rows[ri].cells[0]
+        clear(c)
+        add(c, heading, bold=True)
+        add(c, d.get(key,""), align=WD_ALIGN_PARAGRAPH.JUSTIFY)
 
-    # I. Preliminaries
-    cell = table.rows[3].cells[0]
-    _school_clear_cell(cell)
-    prelim = d.get("preliminaries", {}) or {}
-
-    _school_add_p(cell, "I.  Preliminaries", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
-
-    _school_add_p(cell, "A.  Review", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    review=prelim.get("review",{}) or {}
+    prelim = d.get("preliminaries",{}) or {}
+    c = table.rows[3].cells[0]
+    clear(c)
+    add(c, L["prelim"], bold=True)
+    add(c, L["review"], bold=True)
+    review = prelim.get("review",{}) or {}
     if isinstance(review,dict):
-        if str(review.get("lots_question","") or "").strip(): _school_add_p(cell,f"LOTS: {review.get('lots_question','').strip()}",left=.55)
-        if str(review.get("hots_question","") or "").strip(): _school_add_p(cell,f"HOTS: {review.get('hots_question','').strip()}",left=.55)
-    elif str(review).strip(): _school_add_p(cell,str(review).strip(),left=.55)
+        if str(review.get("lots_question","") or "").strip():
+            add_lv(c, f'{L["lots"]}: ', review.get("lots_question",""))
+        if str(review.get("hots_question","") or "").strip():
+            add_lv(c, f'{L["hots"]}: ', review.get("hots_question",""))
+    elif str(review).strip():
+        add(c, str(review).strip())
 
-    _school_add_p(cell, "B.  Focus", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell,d.get("topic",prelim.get("focus","")),left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
+    add(c, L["focus"], bold=True)
+    add(c, d.get("topic", prelim.get("focus","")))
 
-    _school_add_p(cell, "C.  Resources", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    for resource in prelim.get("resources", []) or []:
-        if str(resource).strip():
-            _school_add_p(
-                cell,
-                f"•  {str(resource).strip()}",
-                left=.55,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-            )
+    add(c, L["resources"], bold=True)
+    for r in prelim.get("resources",[]) or []:
+        if str(r).strip(): add(c, f"o  {str(r).strip()}", left=.15)
 
-    _school_add_p(cell, "D.  Motivation", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    motivation = prelim.get("motivation", {}) or {}
-    if motivation.get("title"):
-        _school_add_p(
-            cell,
-            motivation.get("title", ""),
-            bold=True,
-            italic=True,
-            left=.55,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-    if motivation.get("instruction"):
-        _school_add_label_value(
-            cell,
-            "Instruction: ",
-            motivation.get("instruction", ""),
-            left=.55,
-        )
-    if motivation.get("content"):
-        _school_add_p(
-            cell,
-            motivation.get("content", ""),
-            left=.55,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
+    add(c, L["motivation"], bold=True)
+    mot = prelim.get("motivation",{}) or {}
+    if mot.get("title"): add(c, mot.get("title",""), bold=True)
+    if mot.get("instruction"): add_lv(c, L["instruction"], mot.get("instruction",""))
+    if mot.get("content"): add(c, mot.get("content",""))
+    qs = mot.get("guide_questions",[]) or []
+    if qs:
+        add(c, L["guide_q"] if len(qs)==1 else L["guide_qs"], bold=True)
+        for q in qs: add(c, f"o  {q}", left=.15)
 
-    motivation_questions = motivation.get("guide_questions", []) or []
-    if motivation_questions:
-        guide_label = "Guide Question:" if len(motivation_questions) == 1 else "Guide Questions:"
-        _school_add_p(
-            cell,
-            guide_label,
-            bold=True,
-            italic=True,
-            left=.55,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-        for i, question in enumerate(motivation_questions, 1):
-            prefix = "" if len(motivation_questions) == 1 else f"{i}.) "
-            _school_add_p(cell, prefix + str(question), left=.55)
+    add(c, L["prior"], bold=True)
+    prior = prelim.get("activating_prior_knowledge","")
+    if isinstance(prior,list):
+        for q in prior:
+            if str(q).strip(): add(c, f"o  {q}", left=.15)
+    elif str(prior).strip():
+        add(c, str(prior).strip())
 
-    _school_add_p(
-        cell,
-        "E.  Activating Prior Knowledge",
-        bold=True,
-        left=.30,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    _school_add_p(
-        cell,
-        prelim.get("activating_prior_knowledge", ""),
-        left=.55,
-    )
+    lesson = d.get("lesson_development",{}) or {}
+    c = table.rows[4].cells[0]
+    clear(c)
+    add(c, L["development"], bold=True)
+    add(c, L["presentation"], bold=True)
+    add(c, L["students"], italic=True)
+    for i,obj in enumerate(lesson.get("presentation_of_concept",[]) or [],1):
+        if str(obj).strip(): add(c, f"{i}. {str(obj).strip()}")
 
-    # II. Lesson Development
-    cell = table.rows[4].cells[0]
-    _school_clear_cell(cell)
-    lesson = d.get("lesson_development", {}) or {}
-
-    _school_add_p(cell, "II.  Lesson Development", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
-
-    _school_add_p(cell,"A.  Presentation of Concept",bold=True,left=.30,align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell,"The students will be able to…",left=.55,align=WD_ALIGN_PARAGRAPH.LEFT)
-    objectives=lesson.get("presentation_of_concept",[]) or []
-    for i,objective in enumerate(objectives):
-        if str(objective).strip(): _school_add_p(cell,f"{chr(97+i)}.  {str(objective).strip()}",left=.55)
-
-    _school_add_p(cell, "B.  Activities", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    for activity in lesson.get("activities", []) or []:
-        activity_type = str(activity.get("type", "") or "").strip()
-        activity_title = str(activity.get("title", "") or "").strip()
-        activity_prefix = f"{activity_type} Activity: " if activity_type else "Activity: "
-
-        _school_add_p(
-            cell,
-            activity_prefix + activity_title,
-            bold=True,
-            left=.55,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-
-        if activity.get("instruction"):
-            _school_add_label_value(
-                cell,
-                "Instruction: ",
-                activity.get("instruction", ""),
-                left=.55,
-            )
-
-        steps = activity.get("steps", []) or []
+    add(c, L["activities"], bold=True)
+    type_counts = {}
+    for act in lesson.get("activities",[]) or []:
+        typ = str(act.get("type","") or "").strip()
+        typ_low = typ.lower()
+        if "group" in typ_low or "pangkat" in typ_low:
+            type_label = L["group"]
+        elif "individual" in typ_low or "indibid" in typ_low:
+            type_label = L["individual"]
+        else:
+            type_label = typ or L["activity"]
+        type_counts[type_label] = type_counts.get(type_label,0)+1
+        add(c, type_label, bold=True)
+        title = str(act.get("title","") or "").strip()
+        if title: add(c, f'{L["activity"]} {type_counts[type_label]}: {title}', bold=True)
+        if act.get("instruction"): add_lv(c, L["instruction"], act.get("instruction",""))
+        steps = act.get("steps",[]) or []
         if steps:
-            _school_add_p(
-                cell,
-                "Procedure:",
-                bold=True,
-                left=.55,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-            )
-            for i, step in enumerate(steps, 1):
-                _school_add_p(cell, f"{i}.) {step}", left=.55)
+            add(c, L["procedure"], bold=True)
+            for step in steps: add(c, f"o  {step}", left=.15)
+        aqs = act.get("guide_questions",[]) or []
+        if aqs:
+            add(c, L["guide_q"] if len(aqs)==1 else L["guide_qs"], bold=True)
+            for q in aqs: add(c, f"o  {q}", left=.15)
 
-        activity_questions = activity.get("guide_questions", []) or []
-        if activity_questions:
-            label = "Guide Question:" if len(activity_questions) == 1 else "Guide Questions:"
-            _school_add_p(
-                cell,
-                label,
-                bold=True,
-                italic=True,
-                left=.55,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-            )
-            for i, question in enumerate(activity_questions, 1):
-                _school_add_p(cell, f"{i}.) {question}", left=.55)
+    add(c, L["broadening"], bold=True)
+    broad = lesson.get("broadening_of_concept",{}) or {}
+    for label,key in [
+        (L["leading"],"leading_question"),
+        (L["exploring"],"exploring_question"),
+        (L["connecting"],"connecting_question"),
+        (L["essential"],"essential_question"),
+    ]:
+        if broad.get(key): add_lv(c, f"{label}: ", broad.get(key,""))
 
-    _school_add_p(
-        cell,
-        "C.  Broadening of Concept",
-        bold=True,
-        left=.30,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    broadening = lesson.get("broadening_of_concept", {}) or {}
-    broadening_items = [
-        ("Leading Question", "leading_question"),
-        ("Exploring Question", "exploring_question"),
-        ("Connecting Question", "connecting_question"),
-        ("Essential Question", "essential_question"),
-    ]
-    for label, key in broadening_items:
-        if broadening.get(key):
-            _school_add_p(
-                cell,
-                f"•  {label}",
-                bold=True,
-                left=.55,
-                align=WD_ALIGN_PARAGRAPH.LEFT,
-            )
-            _school_add_p(cell, broadening.get(key, ""), left=.55)
-
-    _school_add_p(cell, "D.  Integration", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    integration = lesson.get("integration", {}) or {}
-
-    integrations = [
-        ("Ignacian Core Value", "ignacian_core_value", "connection"),
-        ("Related Core Value", "related_core_value", "connection"),
-        ("Social Orientation", "social_orientation", "question_or_connection"),
-        ("Lesson Across Discipline", "lesson_across_discipline", "question_or_connection"),
-    ]
-    for label, key, detail_key in integrations:
-        item = integration.get(key, {}) or {}
+    c = table.rows[5].cells[0]
+    clear(c)
+    add(c, L["integration"], bold=True)
+    integ = lesson.get("integration",{}) or {}
+    for label,key,detail in [
+        (L["ignacian"],"ignacian_core_value","connection"),
+        (L["related"],"related_core_value","connection"),
+        (L["social"],"social_orientation","question_or_connection"),
+        (L["discipline"],"lesson_across_discipline","question_or_connection"),
+    ]:
+        item = integ.get(key,{}) or {}
         if item.get("name"):
-            _school_add_label_value(
-                cell,
-                f"•  {label}: ",
-                item.get("name", ""),
-                left=.55,
-            )
-            if item.get(detail_key):
-                _school_add_p(cell, item.get(detail_key, ""), left=.55)
+            add_lv(c, f"{label}: ", item.get("name",""))
+        if item.get(detail): add(c, item.get(detail,""))
 
-    biblical = integration.get("biblical_text_reflection", {}) or {}
-    if biblical.get("reference"):
-        _school_add_label_value(
-            cell,
-            "•  Biblical Text/Reflection: ",
-            biblical.get("reference", ""),
-            left=.55,
-        )
-    if biblical.get("text"):
-        _school_add_p(cell, biblical.get("text", ""), left=.55)
-    if biblical.get("reflection"):
-        _school_add_p(cell, biblical.get("reflection", ""), left=.55)
+    bib = integ.get("biblical_text_reflection",{}) or {}
+    if bib.get("reference"): add_lv(c, f'{L["biblical"]}: ', bib.get("reference",""))
+    if bib.get("text"): add(c, bib.get("text",""), italic=True)
+    if bib.get("reflection"): add(c, bib.get("reflection",""))
 
-    # III. Evaluation/Assessment
-    cell = table.rows[5].cells[0]
-    _school_clear_cell(cell)
-    evaluation = d.get("evaluation_assessment", {}) or {}
+    ev = d.get("evaluation_assessment",{}) or {}
+    c = table.rows[6].cells[0]
+    clear(c)
+    add(c, L["evaluation"], bold=True)
+    add(c, L["formative"], bold=True)
+    for item in ev.get("formative",[]) or []:
+        name = str(item.get("name","") or "").strip()
+        ins = str(item.get("instruction","") or "").strip()
+        if name or ins: add(c, "o  " + (name + (": " if name and ins else "") + ins))
+    add(c, L["summative"], bold=True)
+    for item in ev.get("summative",[]) or []:
+        name = str(item.get("name","") or "").strip()
+        ins = str(item.get("instruction","") or "").strip()
+        if name or ins: add(c, "o  " + (name + (": " if name and ins else "") + ins))
 
-    _school_add_p(
-        cell,
-        "III.  Evaluation/Assessment",
-        bold=True,
-        left=.02,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    _school_add_p(
-        cell,
-        "A.  Formative Assessment",
-        bold=True,
-        left=.30,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    for item in evaluation.get("formative", []) or []:
-        if item.get("name"):
-            value = f"•  {item.get('name', '')}"
-            if item.get("instruction"):
-                value += f": {item.get('instruction', '')}"
-            _school_add_p(cell, value, left=.55)
+    sa = d.get("summary_action",{}) or {}
+    c = table.rows[7].cells[0]
+    clear(c)
+    add(c, L["summary_action"], bold=True)
+    add(c, L["summary"], bold=True)
+    add(c, sa.get("summary",""))
+    add(c, L["action"], bold=True)
+    add(c, sa.get("action",""))
 
-    _school_add_p(
-        cell,
-        "B.  Summative Assessment",
-        bold=True,
-        left=.30,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    for item in evaluation.get("summative", []) or []:
-        if item.get("name"):
-            value = f"•  {item.get('name', '')}"
-            if item.get("instruction"):
-                value += f": {item.get('instruction', '')}"
-            _school_add_p(cell, value, left=.55)
+    ass = d.get("assignment_enrichment",{}) or {}
+    c = table.rows[8].cells[0]
+    clear(c)
+    add(c, L["assignment"], bold=True)
+    if ass.get("assignment"): add(c, ass.get("assignment",""))
+    if ass.get("instructions"): add_lv(c, L["instruction"], ass.get("instructions",""))
+    for q in ass.get("guide_questions",[]) or []:
+        add(c, f"o  {q}", left=.15)
 
-    # IV. Summary/Action
-    cell = table.rows[6].cells[0]
-    _school_clear_cell(cell)
-    summary_action = d.get("summary_action", {}) or {}
+    c = table.rows[9].cells[0]
+    clear(c)
+    add(c, L["references"], bold=True)
+    for ref in d.get("references",[]) or []:
+        if str(ref).strip(): add(c, str(ref).strip())
 
-    _school_add_p(cell, "IV.  Summary/Action", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell, "A.  Summary", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell, summary_action.get("summary", ""), left=.55)
-    _school_add_p(cell, "B.  Action", bold=True, left=.30, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(cell, summary_action.get("action", ""), left=.55)
+    # Signatures: preserve exact two-column / noted / implementation layout.
+    left = table.rows[10].cells[0]
+    right = table.rows[10].cells[1]
+    clear(left); clear(right)
+    add(left, L["prepared"], bold=True)
+    add(left, "")
+    add(left, d.get("prepared_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    prepared_title = str(d.get("prepared_by_title","") or "").strip() or L["teacher"]
+    add(left, prepared_title, align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(left, "")
+    add(left, L["submitted"])
 
-    # V. Purposive Assignment/Enrichment
-    cell = table.rows[7].cells[0]
-    _school_clear_cell(cell)
-    assignment = d.get("assignment_enrichment", {}) or {}
+    add(right, L["checked"], bold=True)
+    add(right, "")
+    add(right, d.get("checked_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(right, d.get("checked_by_title",""), align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    _school_add_p(
-        cell,
-        "V.  Purposive Assignment/Enrichment",
-        bold=True,
-        left=.02,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    if assignment.get("assignment"):
-        _school_add_label_value(
-            cell,
-            "Assignment: ",
-            assignment.get("assignment", ""),
-            left=.30,
-        )
-    if assignment.get("instructions"):
-        _school_add_label_value(
-            cell,
-            "Instruction: ",
-            assignment.get("instructions", ""),
-            left=.30,
-        )
+    noted = table.rows[11].cells[0]
+    clear(noted)
+    add(noted, L["noted"], bold=True)
+    add(noted, "")
+    add(noted, d.get("noted_by",""), bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(noted, d.get("noted_by_title",""), align=WD_ALIGN_PARAGRAPH.CENTER)
 
-    assignment_questions = assignment.get("guide_questions", []) or []
-    if assignment_questions:
-        label = "Guide Question:" if len(assignment_questions) == 1 else "Guide Questions:"
-        _school_add_p(
-            cell,
-            label,
-            bold=True,
-            left=.30,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-        for i, question in enumerate(assignment_questions, 1):
-            _school_add_p(cell, f"{i}.) {question}", left=.55)
+    status = table.rows[12].cells[0]
+    mods = table.rows[12].cells[1]
+    clear(status); clear(mods)
+    add(status, L["status"], bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(status, L["implemented"])
+    add(status, L["not_implemented"])
+    add(status, L["remarks"], bold=True)
+    add(status, "____________________________________")
+    add(status, L["observed"])
+    add(status, L["date_observed"])
 
-    # VI. References
-    cell = table.rows[8].cells[0]
-    _school_clear_cell(cell)
-    _school_add_p(cell, "VI.  References", bold=True, left=.02, align=WD_ALIGN_PARAGRAPH.LEFT)
-    for reference in d.get("references", []) or []:
-        if str(reference).strip():
-            _school_add_p(cell, str(reference).strip(), left=.30)
+    add(mods, L["modifications"], bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
+    add(mods, "")
+    add(mods, "__________________________________________________________________________________________")
+    add(mods, L["remarks"], bold=True)
+    add(mods, "")
+    add(mods, "")
 
-    # --------------------------------------------------------
-    # SIGNATURES - same boxed layout as the school sample
-    # --------------------------------------------------------
-    prepared_title = str(d.get("prepared_by_title", "") or "").strip()
-    if not prepared_title:
-        subject_text = str(d.get("subject", "") or "").strip()
-        prepared_title = f"{subject_text} Teacher" if subject_text else "Teacher"
+    # Remove the unused blank body paragraphs that follow the final table in the supplied
+    # template. They otherwise create an extra blank page after shorter generated plans.
+    body = doc._element.body
+    last_table_seen = False
+    for child in list(body):
+        tag = child.tag.split("}")[-1]
+        if tag == "tbl":
+            last_table_seen = True
+            continue
+        if last_table_seen and tag == "p":
+            text_nodes = child.xpath(".//w:t/text()")
+            if not "".join(text_nodes).strip():
+                body.remove(child)
 
-    signature_row = table.rows[9]
-    signature_data = [
-        (
-            signature_row.cells[0],
-            "Prepared by:",
-            d.get("prepared_by", ""),
-            prepared_title,
-        ),
-        (
-            signature_row.cells[2],
-            "Checked by:",
-            d.get("checked_by", ""),
-            d.get("checked_by_title", ""),
-        ),
-    ]
-    for cell, label, name, title in signature_data:
-        _school_clear_cell(cell)
-        _school_add_p(cell, label, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
-        _school_add_p(cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
-        _school_add_p(cell, name, bold=True, align=WD_ALIGN_PARAGRAPH.CENTER)
-        _school_add_p(cell, title, align=WD_ALIGN_PARAGRAPH.CENTER)
+    # Enforce Arial 12 for all generated/existing text without changing the template structure.
+    for table_obj in doc.tables:
+        for row in table_obj.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        _school_set_run_font(run, bold=run.bold, italic=run.italic)
 
-    noted_cell = table.rows[10].cells[1]
-    _school_clear_cell(noted_cell)
-    _school_add_p(noted_cell, "Noted by:", bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(noted_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(
-        noted_cell,
-        d.get("noted_by", ""),
-        bold=True,
-        align=WD_ALIGN_PARAGRAPH.CENTER,
-    )
-    _school_add_p(
-        noted_cell,
-        d.get("noted_by_title", ""),
-        align=WD_ALIGN_PARAGRAPH.CENTER,
-    )
-
-    # --------------------------------------------------------
-    # STATUS OF IMPLEMENTATION / MODIFICATIONS
-    # --------------------------------------------------------
-    status_row = table.rows[11]
-
-    status_cell = status_row.cells[0]
-    _school_clear_cell(status_cell)
-    _school_add_p(
-        status_cell,
-        "Status of Implementation",
-        bold=True,
-        align=WD_ALIGN_PARAGRAPH.CENTER,
-    )
-    _school_add_p(
-        status_cell,
-        "___Implemented         ___ Partially Implemented",
-        left=.05,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    _school_add_p(
-        status_cell,
-        "___Not Implemented",
-        left=.05,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    _school_add_p(status_cell, "Remarks:", bold=True, left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(status_cell, "_____________________________________", left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(status_cell, "_____________________________________", left=.05, align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(status_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(
-        status_cell,
-        "Observed by: _________________________",
-        left=.05,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    _school_add_p(status_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(
-        status_cell,
-        "Date Observed: _______________________",
-        left=.05,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-
-    modifications_cell = status_row.cells[2]
-    _school_clear_cell(modifications_cell)
-    _school_add_p(
-        modifications_cell,
-        "Modifications",
-        bold=True,
-        align=WD_ALIGN_PARAGRAPH.CENTER,
-    )
-    for _ in range(3):
-        _school_add_p(
-            modifications_cell,
-            "_____________________________________",
-            left=.05,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-    _school_add_p(modifications_cell, "", align=WD_ALIGN_PARAGRAPH.LEFT)
-    _school_add_p(
-        modifications_cell,
-        "Remarks:",
-        bold=True,
-        left=.05,
-        align=WD_ALIGN_PARAGRAPH.LEFT,
-    )
-    for _ in range(3):
-        _school_add_p(
-            modifications_cell,
-            "_____________________________________",
-            left=.05,
-            align=WD_ALIGN_PARAGRAPH.LEFT,
-        )
-
-    out = io.BytesIO()
+    out = BytesIO()
     doc.save(out)
     return out.getvalue()
-
 
 # ============================================================
 # USER INTERFACE
@@ -1156,6 +980,7 @@ if st.button(
                 lesson_date=lesson_date.strip(), language=language, subject=subject_input.strip(),
                 grade_sections=grade_sections_input.strip(), term=term_input.strip(), customization=customization.strip(),
             )
+            data["language"]=language
             data["subject"]=subject_input.strip()
             data["grade_level"]=grade_sections_input.strip()
             data["term"]=term_input.strip()
