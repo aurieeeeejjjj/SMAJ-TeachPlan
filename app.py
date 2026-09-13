@@ -11,6 +11,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
 from docx.oxml.ns import qn
 from google import genai
+from google.genai import types
 
 
 # ============================================================
@@ -388,7 +389,20 @@ def generate_plan(
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
         model=GEMINI_MODEL,
-        contents=build_prompt(cm_text, up_text, topic, session, lesson_date, learning_competency, learning_objectives),
+        contents=build_prompt(
+            cm_text,
+            up_text,
+            topic,
+            session,
+            lesson_date,
+            learning_competency,
+            learning_objectives,
+        ),
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+            max_output_tokens=12000,
+        ),
     )
 
     if not response.text:
@@ -815,7 +829,7 @@ if not GEMINI_API_KEY:
 st.divider()
 
 if st.button(
-    "✨ GENERATE LESSON PLAN",
+    " GENERATE LESSON PLAN",
     type="primary",
     disabled=(not ready or not GEMINI_API_KEY),
 ):
@@ -872,23 +886,42 @@ if st.button(
         st.success(" Lesson plan ready!")
 
     except Exception as exc:
-        error_text = str(exc).lower()
+        raw_error = str(exc)
+        error_text = raw_error.lower()
 
-        if "429" in error_text or "quota" in error_text or "rate" in error_text:
+        if "429" in error_text or "quota" in error_text or "resource_exhausted" in error_text or "rate" in error_text:
             st.error(
-                "The free AI limit has been reached for now. Please wait and try again later."
+                "The Gemini free-tier limit has been reached for now. Please wait and try again later."
             )
-        elif "api key" in error_text or "permission" in error_text or "401" in error_text or "403" in error_text:
+        elif (
+            "api key" in error_text
+            or "api_key" in error_text
+            or "permission" in error_text
+            or "unauthenticated" in error_text
+            or "401" in error_text
+            or "403" in error_text
+        ):
             st.error(
-                "The AI connection is not configured correctly. Please contact the site administrator."
+                "Gemini could not authenticate this app. Please check the GEMINI_API_KEY saved in Streamlit Secrets."
+            )
+        elif "404" in error_text or "not found" in error_text or "model" in error_text and "not" in error_text:
+            st.error(
+                "The configured Gemini model is unavailable. Check GEMINI_MODEL in Streamlit Secrets."
+            )
+        elif "json" in error_text or "decode" in error_text:
+            st.error(
+                "Gemini returned an incomplete lesson plan response. Please click Generate Lesson Plan again."
             )
         else:
             st.error(
-                "The lesson plan could not be generated right now. Please try again in a moment."
+                "The lesson plan could not be generated. The app owner can use the diagnostic message below."
             )
+            # Show only a short diagnostic message. API keys are redacted if they ever appear.
+            safe_error = re.sub(r'AIza[0-9A-Za-z_-]{20,}', '[REDACTED_API_KEY]', raw_error)
+            safe_error = safe_error[:800]
+            st.code(f"{type(exc).__name__}: {safe_error}")
 
-        # Keep technical details out of the teacher-facing page.
-        print(f"Lesson plan generation error: {exc}")
+        print(f"Lesson plan generation error ({type(exc).__name__}): {raw_error}")
 
 if "generated_docx" in st.session_state:
     safe_topic = re.sub(
