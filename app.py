@@ -331,7 +331,7 @@ Teacher Customization / Contextualization: {customization or "[none supplied]"}
 RULES
 =====
 1. Generate ONE realistic daily lesson plan for the Specific Lesson Topic / Focus in the selected Language (English or Filipino).
-2. Use simple, natural teacher wording: short, clear, practical, understandable sentences, directions, and questions.
+2. Use simple, natural, human teacher wording. Write student-facing content the way a teacher would actually say it in class: short, clear, warm, direct, and easy to understand on the first reading.
 3. Respect Customization / Contextualization unless it conflicts with the Curriculum Map, Unit Plan, or competency.
 4. Keep the COMPLETE lesson realistic for LESS THAN ONE HOUR.
 5. Use ONLY Learning Competency/Competencies supported by the Curriculum Map or Unit Plan. NEVER invent one. If none matches, return an empty learning_competencies list.
@@ -360,6 +360,24 @@ RULES
 28. Do not invent staff names, unsupported curriculum requirements, or school-specific facts.
 29. Use teacher-supplied Subject, Grade and Section/s, Term, Session, and Date where appropriate.
 30. Return ONLY valid JSON.
+
+STUDENT-FRIENDLY AND HUMANIZED WORDING
+31. Write as a real classroom teacher speaking to Grade-level students, not as an academic writer, curriculum specialist, or AI.
+32. Use familiar, everyday words whenever possible. Prefer short sentences and direct instructions.
+33. Student-facing questions, directions, activities, motivation, review, summary, and action must be easy for students to understand on the first reading.
+34. Avoid unnecessarily difficult words, abstract phrasing, jargon, long explanations, and robotic expressions.
+35. Do not make simple ideas sound complicated. For example, prefer "What do you notice about the data?" over "What observations can be derived from the presented dataset?"
+36. Prefer natural directions such as "Work with your group. Look at the data and answer the questions." instead of formal wording such as "Collaboratively analyze the provided data set and formulate responses."
+37. Keep questions focused on ONE clear idea whenever possible. Do not combine several difficult questions into one sentence.
+38. Match the wording to the students' Grade and Section/s. The thinking may be LOTS or HOTS, but the LANGUAGE of the question must still be simple and age-appropriate.
+39. HOTS means deeper thinking, not harder vocabulary. Use simple words even for analysis, application, evaluation, and reflection questions.
+40. For Filipino output, use natural classroom Filipino that students commonly understand. Avoid deep, old-fashioned, overly formal, or awkward literal translations. Keep official school section headings in Filipino, but make student-facing content conversational and clear.
+41. For English output, use natural classroom English with common words and concise sentences.
+42. Preserve the exact Learning Competency wording from the Curriculum Map/Unit Plan when it is quoted or copied. Do not simplify the official competency itself if doing so would change its meaning. Simplify the objectives, directions, questions, activities, assessments, and explanations around it.
+43. Make Motivation sound inviting and interesting to students. It should feel like a short classroom hook, not a formal lesson-plan description.
+44. Make Activating Prior Knowledge, Broadening questions, Summary, and Action sound like questions a teacher could naturally ask aloud in class.
+45. Make assessment directions specific and simple: clearly tell students what to do, without unnecessary explanation.
+46. Before returning the JSON, silently reread every student-facing sentence and simplify any wording that sounds too formal, robotic, vague, or difficult while keeping the intended learning level and curriculum alignment unchanged.
 
 RETURN EXACTLY THIS JSON SHAPE
 ==============================
